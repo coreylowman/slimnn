@@ -1,0 +1,14 @@
+[workspace]
+
+[package]
+name = "slimnn"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+derives = { path = "./derives" }
+dfdx = { git = "https://github.com/coreylowman/dfdx.git", branch = "main" }
+num-traits = "0.2.15"
+rand_distr = "0.4.3"
