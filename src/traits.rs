@@ -59,7 +59,7 @@ pub trait UpdateParams<E: Dtype, D: Device<E>> {
 }
 
 pub trait BuildModuleExt<M>: Sized {
-    fn build_module<E: Dtype>(&self, m: M) -> M::Built
+    fn build_module_ext<E: Dtype>(&self, m: M) -> M::Built
     where
         M: BuildOnDevice<E, Self>,
         M::Built: ResetParams,

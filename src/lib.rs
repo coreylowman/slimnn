@@ -1,10 +1,11 @@
-mod batch_norm2d;
-mod bias1d;
-mod layer_norm1d;
-mod linear;
-mod matmul;
-mod relu;
-mod residual_add;
-mod traits;
+pub mod batch_norm2d;
+pub mod bias1d;
+pub mod layer_norm1d;
+pub mod linear;
+pub mod matmul;
+pub mod relu;
+pub mod residual_add;
+pub mod traits;
 
+pub use derives::*;
 pub use traits::*;

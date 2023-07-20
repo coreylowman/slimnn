@@ -30,11 +30,6 @@ macro_rules! match_type {
     };
 }
 
-#[proc_macro_derive(Sequential)]
-pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    proc_macro::TokenStream::new()
-}
-
 #[proc_macro_derive(Functional, attributes(calls_fn))]
 pub fn functional(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::new()
@@ -48,6 +43,205 @@ pub fn to_dtype(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[proc_macro_derive(ToDevice)]
 pub fn to_device(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::new()
+}
+
+#[proc_macro_derive(Sequential)]
+pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    let builder_name = input.ident.clone();
+
+    let built_name = input
+        .attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("built"))
+        .map(|attr| attr.parse_args::<syn::Ident>().unwrap())
+        .unwrap_or_else(|| syn::Ident::new(&format!("{}Built", builder_name), input.span()));
+    let mut built_generics = input.generics.clone();
+    built_generics
+        .params
+        .push(parse_quote!(E: dfdx::prelude::Dtype));
+    built_generics
+        .params
+        .push(parse_quote!(D: dfdx::prelude::Device<E>));
+
+    // get the generics for the impl. `Input` must be added only to the impl_generics.
+    // NOTE: without cloning, `Input` will appear in both impl & ty generics.
+    let mut module_generics = built_generics.clone();
+    module_generics.params.push(parse_quote!(Input));
+
+    let struct_def = {
+        let where_clause = built_generics.make_where_clause();
+        let fields = {
+            match &input.data {
+                Data::Struct(ref obj) => match obj.fields {
+                    Fields::Named(ref fields) => {
+                        let fields = fields.named.iter().map(|f| {
+                            let name = &f.ident;
+                            let ty = &f.ty;
+                            where_clause
+                                .predicates
+                                .push(parse_quote!(#ty: crate::BuildOnDevice<E, D>));
+                            quote_spanned!(f.span()=> #name: <#ty as crate::BuildOnDevice<E, D>>::Built,)
+                        });
+                        quote! { #(#fields)* }
+                    }
+                    Fields::Unnamed(ref fields) => {
+                        let fields = fields.unnamed.iter().map(|f| {
+                            let ty = &f.ty;
+                            where_clause
+                                .predicates
+                                .push(parse_quote!(#ty: crate::BuildOnDevice<E, D>));
+                            quote_spanned!(f.span()=> <#ty as crate::BuildOnDevice<E, D>>::Built,)
+                        });
+                        quote! { #(#fields)* }
+                    }
+                    Fields::Unit => Default::default(),
+                },
+                Data::Enum(_) => unimplemented!("Sequential cannot be derived for enums."),
+                Data::Union(_) => unimplemented!("Sequential cannot be derived for unions."),
+            }
+        };
+
+        let (built_impl, _, built_where) = built_generics.split_for_impl();
+
+        quote! {
+            #[derive(crate::ResetParams, crate::UpdateParams, crate::ZeroGrads, crate::ToDevice, crate::ToDtype)]
+            pub struct #built_name #built_impl #built_where {
+                #fields
+            }
+        }
+    };
+
+    let impl_build_on_device = {
+        let (_, builder_ty, _) = input.generics.split_for_impl();
+        let (built_impl, built_ty, built_where) = built_generics.split_for_impl();
+
+        match input.data {
+            Data::Struct(ref data) => match data.fields {
+                Fields::Named(ref fields) => {
+                    let recurse = fields.named.iter().map(|f| {
+                        let name = &f.ident;
+                        quote_spanned! {f.span()=> #name: self.#name.try_build_on_device(device)?, }
+                    });
+                    quote! {
+                        impl #built_impl crate::BuildOnDevice<E, D> for #builder_name #builder_ty #built_where {
+                            type Built = #built_name #built_ty;
+                            fn try_build_on_device(&self, device: &D) -> Result<Self::Built, D::Err> {
+                                let built = #built_name {
+                                    #(#recurse)*
+                                };
+                                Ok(built)
+                            }
+                        }
+                    }
+                }
+                Fields::Unnamed(ref fields) => {
+                    let recurse = fields.unnamed.iter().enumerate().map(|(i, f)| {
+                        let index = Index::from(i);
+                        quote_spanned! {f.span()=> self.#index.try_build_on_device(device)?, }
+                    });
+                    quote! {
+                        impl #built_impl crate::BuildOnDevice<E, D> for #builder_name #builder_ty #built_where {
+                            type Built = #built_name #built_ty;
+                            fn try_build_on_device(&self, device: &D) -> Result<Self::Built, D::Err> {
+                                #built_name(
+                                    #(#recurse)*
+                                )
+                            }
+                        }
+                    }
+                }
+                Fields::Unit => proc_macro2::TokenStream::new(),
+            },
+            _ => unreachable!(),
+        }
+    };
+
+    // Get's the output type of the sequential. Also adds Module bounds to the where clause.
+    let mut last_ty = quote!(Input);
+    let err = quote!(<Input as dfdx::prelude::HasErr>::Err);
+    let output_ty = {
+        let where_clause = module_generics.make_where_clause();
+        where_clause
+            .predicates
+            .push(parse_quote!(Input: dfdx::prelude::HasErr));
+        match &input.data {
+            Data::Struct(ref obj) => match obj.fields {
+                Fields::Named(ref fields) => {
+                    fields.named.iter().for_each(|f| {
+                        let ty = &f.ty;
+                        where_clause
+                            .predicates
+                            .push(parse_quote!(#ty: crate::BuildOnDevice<E, D>));
+                        where_clause
+                            .predicates
+                            .push(parse_quote!(<#ty as crate::BuildOnDevice<E, D>>::Built: crate::Module<#last_ty, Error = #err>));
+                        last_ty = parse_quote!(<<#ty as crate::BuildOnDevice<E, D>>::Built as crate::Module<#last_ty>>::Output);
+                    });
+                }
+                Fields::Unnamed(ref fields) => {
+                    fields.unnamed.iter().for_each(|f| {
+                        let ty = &f.ty;
+                        where_clause
+                            .predicates
+                            .push(parse_quote!(#ty: crate::BuildOnDevice<E, D>));
+                        where_clause
+                            .predicates
+                            .push(parse_quote!(<#ty as crate::BuildOnDevice<E, D>>::Built: crate::Module<#last_ty, Error = #err>));
+                        last_ty = parse_quote!(<<#ty as crate::BuildOnDevice<E, D>>::Built as crate::Module<#last_ty>>::Output);
+                    });
+                }
+                Fields::Unit => {}
+            },
+            Data::Enum(_) => unimplemented!("Sequential cannot be derived for enums."),
+            Data::Union(_) => unimplemented!("Sequential cannot be derived for unions."),
+        };
+        last_ty
+    };
+
+    let impl_module = {
+        let src = match input.data {
+            Data::Struct(ref data) => match data.fields {
+                Fields::Named(ref fields) => {
+                    let recurse = fields.named.iter().map(|f| {
+                        let name = &f.ident;
+                        quote_spanned! {f.span()=> self.#name.try_forward(x)? }
+                    });
+                    quote! { #(let x = #recurse;)* }
+                }
+                Fields::Unnamed(ref fields) => {
+                    let recurse = fields.unnamed.iter().enumerate().map(|(i, f)| {
+                        let index = Index::from(i);
+                        quote_spanned! {f.span()=> self.#index.try_forward(x)? }
+                    });
+                    quote! { #(let x = #recurse;)* }
+                }
+                Fields::Unit => quote! { let x = x; },
+            },
+            _ => unreachable!(),
+        };
+
+        let (_, built_ty, _) = built_generics.split_for_impl();
+        let (module_impl, _, module_where) = module_generics.split_for_impl();
+
+        quote! {
+            impl #module_impl crate::Module<Input> for #built_name #built_ty #module_where {
+                type Output = #output_ty;
+                type Error = #err;
+                fn try_forward(&self, x: Input) -> Result<Self::Output, Self::Error> {
+                    #src
+                    Ok(x)
+                }
+            }
+        }
+    };
+
+    proc_macro::TokenStream::from(quote! {
+        #struct_def
+        #impl_build_on_device
+        #impl_module
+    })
 }
 
 #[proc_macro_derive(ResetParams)]
