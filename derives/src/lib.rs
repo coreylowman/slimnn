@@ -61,7 +61,7 @@ pub fn functional(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .push(parse_quote!(T: dfdx::prelude::Tape<E, D>));
 
     let (builder_impl, builder_ty, builder_where) = input.generics.split_for_impl();
-    let (built_impl, built_ty, built_where) = built_generics.split_for_impl();
+    let (built_impl, _, built_where) = built_generics.split_for_impl();
     let (module_impl, _, _) = module_generics.split_for_impl();
 
     proc_macro::TokenStream::from(quote! {
@@ -141,20 +141,22 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         let fields = fields.named.iter().map(|f| {
                             let name = &f.ident;
                             let ty = &f.ty;
+                            let vis = &f.vis;
                             where_clause
                                 .predicates
                                 .push(parse_quote!(#ty: basenn::BuildOnDevice<E, D>));
-                            quote_spanned!(f.span()=> #name: <#ty as basenn::BuildOnDevice<E, D>>::Built,)
+                            quote_spanned!(f.span()=> #vis #name: <#ty as basenn::BuildOnDevice<E, D>>::Built,)
                         });
                         quote! { #(#fields)* }
                     }
                     Fields::Unnamed(ref fields) => {
                         let fields = fields.unnamed.iter().map(|f| {
                             let ty = &f.ty;
+                            let vis = &f.vis;
                             where_clause
                                 .predicates
                                 .push(parse_quote!(#ty: basenn::BuildOnDevice<E, D>));
-                            quote_spanned!(f.span()=> <#ty as basenn::BuildOnDevice<E, D>>::Built,)
+                            quote_spanned!(f.span()=> #vis <#ty as basenn::BuildOnDevice<E, D>>::Built,)
                         });
                         quote! { #(#fields)* }
                     }
@@ -168,7 +170,7 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let (built_impl, _, built_where) = built_generics.split_for_impl();
 
         quote! {
-            #[derive(derives::ResetParams, derives::UpdateParams, derives::ZeroGrads, derives::ToDevice, derives::ToDtype)]
+            #[derive(Clone, derives::ResetParams, derives::UpdateParams, derives::ZeroGrads, derives::ToDevice, derives::ToDtype)]
             pub struct #built_name #built_impl #built_where {
                 #fields
             }

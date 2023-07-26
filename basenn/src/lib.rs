@@ -27,8 +27,8 @@ pub trait Optimizer<E: Dtype, D: Device<E>> {
     ) -> Result<(), D::Err>;
 }
 
-pub trait BuildOnDevice<E: Dtype, D: Device<E>> {
-    type Built;
+pub trait BuildOnDevice<E: Dtype, D: Device<E>>: Clone {
+    type Built: Clone;
     fn build_on_device(&self, device: &D) -> Self::Built {
         self.try_build_on_device(device).unwrap()
     }
@@ -88,9 +88,9 @@ pub trait ZeroGrads<E: Dtype, D: Device<E>> {
     }
 }
 
-pub trait ToDtype {
+pub trait ToDtype<E> {
     type AsDtype;
-    fn to_dtype<F: Dtype>(self) -> Self::AsDtype;
+    fn to_dtype(self) -> Self::AsDtype;
 }
 
 pub trait ToDevice<D> {
