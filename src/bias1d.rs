@@ -1,4 +1,4 @@
-use super::traits::*;
+use basenn::*;
 
 use derives::*;
 use dfdx::{

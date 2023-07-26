@@ -5,7 +5,6 @@ pub mod linear;
 pub mod matmul;
 pub mod relu;
 pub mod residual_add;
-pub mod traits;
 
+pub use basenn::*;
 pub use derives::*;
-pub use traits::*;
