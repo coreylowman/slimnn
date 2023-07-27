@@ -99,6 +99,7 @@ pub fn functional(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
 #[proc_macro_derive(ToDtype)]
 pub fn to_dtype(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let mut input = parse_macro_input!(input as DeriveInput);
     proc_macro::TokenStream::new()
 }
 

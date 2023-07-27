@@ -90,7 +90,7 @@ pub trait ZeroGrads<E: Dtype, D: Device<E>> {
 
 pub trait ToDtype<E> {
     type AsDtype;
-    fn to_dtype(self) -> Self::AsDtype;
+    fn to_dtype(&self, _unused: &E) -> Self::AsDtype;
 }
 
 pub trait ToDevice<D> {

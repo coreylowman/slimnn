@@ -21,8 +21,25 @@ pub struct DynLinearUnbiased {
     pub matmul: DynMatMul,
 }
 
+impl DynLinearUnbiased {
+    pub fn new(inp: usize, out: usize) -> Self {
+        Self {
+            matmul: DynMatMul { inp, out },
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Sequential)]
 pub struct DynLinear {
     pub matmul: DynMatMul,
     pub bias: DynBias1D,
+}
+
+impl DynLinear {
+    pub fn new(inp: usize, out: usize) -> Self {
+        Self {
+            matmul: DynMatMul { inp, out },
+            bias: DynBias1D(out),
+        }
+    }
 }

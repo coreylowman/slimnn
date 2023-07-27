@@ -10,6 +10,6 @@ edition = "2021"
 [dependencies]
 basenn = { path = "./basenn" }
 derives = { path = "./derives" }
-dfdx = { git = "https://github.com/coreylowman/dfdx.git", branch = "main" }
+dfdx = { version = "0.13.0" }
 num-traits = "0.2.15"
 rand_distr = "0.4.3"
