@@ -31,8 +31,8 @@ impl<E: Dtype, D: Device<E>> BuildOnDevice<E, D> for DynBias1D {
 }
 
 #[derive(Clone, Debug, UpdateParams, ZeroGrads, ToDtype, ToDevice)]
-pub struct Bias1D<I: Dim, E: Dtype, D: Device<E>> {
-    pub bias: Tensor<(I,), E, D>,
+pub struct Bias1D<I: Dim, Elem: Dtype, Dev: Device<Elem>> {
+    pub bias: Tensor<(I,), Elem, Dev>,
 }
 
 impl<I: Dim, E: Dtype, D: Device<E>> ResetParams for Bias1D<I, E, D> {

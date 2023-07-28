@@ -39,8 +39,8 @@ impl<E: Dtype, D: Device<E>> BuildOnDevice<E, D> for DynMatMul {
 }
 
 #[derive(Clone, Debug, UpdateParams, ZeroGrads, ToDtype, ToDevice)]
-pub struct MatMul<I: Dim, O: Dim, E: Dtype, D: Device<E>> {
-    pub weight: Tensor<(I, O), E, D>,
+pub struct MatMul<I: Dim, O: Dim, Elem: Dtype, Dev: Device<Elem>> {
+    pub weight: Tensor<(I, O), Elem, Dev>,
 }
 
 // NOTE: others can simply #[derive(ResetParams)]

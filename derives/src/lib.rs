@@ -45,10 +45,10 @@ pub fn functional(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut built_generics = input.generics.clone();
     built_generics
         .params
-        .push(parse_quote!(E: dfdx::prelude::Dtype));
+        .push(parse_quote!(Elem: dfdx::prelude::Dtype));
     built_generics
         .params
-        .push(parse_quote!(D: dfdx::prelude::Device<E>));
+        .push(parse_quote!(Dev: dfdx::prelude::Device<Elem>));
 
     // get the generics for the impl. `Input` must be added only to the impl_generics.
     // NOTE: without cloning, `Input` will appear in both impl & ty generics.
@@ -58,16 +58,16 @@ pub fn functional(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .push(parse_quote!(S: dfdx::prelude::Shape));
     module_generics
         .params
-        .push(parse_quote!(T: dfdx::prelude::Tape<E, D>));
+        .push(parse_quote!(T: dfdx::prelude::Tape<Elem, Dev>));
 
     let (builder_impl, builder_ty, builder_where) = input.generics.split_for_impl();
     let (built_impl, _, built_where) = built_generics.split_for_impl();
     let (module_impl, _, _) = module_generics.split_for_impl();
 
     proc_macro::TokenStream::from(quote! {
-        impl #built_impl basenn::BuildOnDevice<E, D> for #name #builder_ty #built_where {
+        impl #built_impl basenn::BuildOnDevice<Elem, Dev> for #name #builder_ty #built_where {
             type Built = Self;
-            fn try_build_on_device(&self, device: &D) -> Result<Self::Built, D::Err> {
+            fn try_build_on_device(&self, device: &Dev) -> Result<Self::Built, Dev::Err> {
                 Ok(*self)
             }
         }
@@ -77,20 +77,20 @@ pub fn functional(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             fn try_reset_params(&mut self) -> Result<(), Self::Error> { Ok(()) }
         }
 
-        impl #built_impl basenn::UpdateParams<E, D> for #name #builder_ty #built_where {
-            fn try_update_params<Optim: basenn::Optimizer<E, D>>(
+        impl #built_impl basenn::UpdateParams<Elem, Dev> for #name #builder_ty #built_where {
+            fn try_update_params<Optim: basenn::Optimizer<Elem, Dev>>(
                 &mut self,
                 optimizer: &mut Optim,
-                gradients: &dfdx::prelude::Gradients<E, D>,
-            ) -> Result<(), D::Err> {
+                gradients: &dfdx::prelude::Gradients<Elem, Dev>,
+            ) -> Result<(), Dev::Err> {
                 Ok(())
             }
         }
 
-        impl #module_impl basenn::Module<dfdx::prelude::Tensor<S, E, D, T>> for #name #builder_ty #built_where {
-            type Output = dfdx::prelude::Tensor<S, E, D, T>;
-            type Error = D::Err;
-            fn try_forward(&self, x: dfdx::prelude::Tensor<S, E, D, T>) -> Result<Self::Output, Self::Error> {
+        impl #module_impl basenn::Module<dfdx::prelude::Tensor<S, Elem, Dev, T>> for #name #builder_ty #built_where {
+            type Output = dfdx::prelude::Tensor<S, Elem, Dev, T>;
+            type Error = Dev::Err;
+            fn try_forward(&self, x: dfdx::prelude::Tensor<S, Elem, Dev, T>) -> Result<Self::Output, Self::Error> {
                 #fn_name(x)
             }
         }
@@ -123,10 +123,10 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut built_generics = input.generics.clone();
     built_generics
         .params
-        .push(parse_quote!(E: dfdx::prelude::Dtype));
+        .push(parse_quote!(Elem: dfdx::prelude::Dtype));
     built_generics
         .params
-        .push(parse_quote!(D: dfdx::prelude::Device<E>));
+        .push(parse_quote!(Dev: dfdx::prelude::Device<Elem>));
 
     // get the generics for the impl. `Input` must be added only to the impl_generics.
     // NOTE: without cloning, `Input` will appear in both impl & ty generics.
@@ -145,8 +145,8 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             let vis = &f.vis;
                             where_clause
                                 .predicates
-                                .push(parse_quote!(#ty: basenn::BuildOnDevice<E, D>));
-                            quote_spanned!(f.span()=> #vis #name: <#ty as basenn::BuildOnDevice<E, D>>::Built,)
+                                .push(parse_quote!(#ty: basenn::BuildOnDevice<Elem, Dev>));
+                            quote_spanned!(f.span()=> #vis #name: <#ty as basenn::BuildOnDevice<Elem, Dev>>::Built,)
                         });
                         quote! { #(#fields)* }
                     }
@@ -156,8 +156,8 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             let vis = &f.vis;
                             where_clause
                                 .predicates
-                                .push(parse_quote!(#ty: basenn::BuildOnDevice<E, D>));
-                            quote_spanned!(f.span()=> #vis <#ty as basenn::BuildOnDevice<E, D>>::Built,)
+                                .push(parse_quote!(#ty: basenn::BuildOnDevice<Elem, Dev>));
+                            quote_spanned!(f.span()=> #vis <#ty as basenn::BuildOnDevice<Elem, Dev>>::Built,)
                         });
                         quote! { #(#fields)* }
                     }
@@ -190,9 +190,9 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         quote_spanned! {f.span()=> #name: self.#name.try_build_on_device(device)?, }
                     });
                     quote! {
-                        impl #built_impl basenn::BuildOnDevice<E, D> for #builder_name #builder_ty #built_where {
+                        impl #built_impl basenn::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
                             type Built = #built_name #built_ty;
-                            fn try_build_on_device(&self, device: &D) -> Result<Self::Built, D::Err> {
+                            fn try_build_on_device(&self, device: &Dev) -> Result<Self::Built, Dev::Err> {
                                 let built = #built_name {
                                     #(#recurse)*
                                 };
@@ -207,9 +207,9 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         quote_spanned! {f.span()=> self.#index.try_build_on_device(device)?, }
                     });
                     quote! {
-                        impl #built_impl basenn::BuildOnDevice<E, D> for #builder_name #builder_ty #built_where {
+                        impl #built_impl basenn::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
                             type Built = #built_name #built_ty;
-                            fn try_build_on_device(&self, device: &D) -> Result<Self::Built, D::Err> {
+                            fn try_build_on_device(&self, device: &Dev) -> Result<Self::Built, Dev::Err> {
                                 #built_name(
                                     #(#recurse)*
                                 )
@@ -238,11 +238,11 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         let ty = &f.ty;
                         where_clause
                             .predicates
-                            .push(parse_quote!(#ty: basenn::BuildOnDevice<E, D>));
+                            .push(parse_quote!(#ty: basenn::BuildOnDevice<Elem, Dev>));
                         where_clause
                             .predicates
-                            .push(parse_quote!(<#ty as basenn::BuildOnDevice<E, D>>::Built: basenn::Module<#last_ty, Error = #err>));
-                        last_ty = parse_quote!(<<#ty as basenn::BuildOnDevice<E, D>>::Built as basenn::Module<#last_ty>>::Output);
+                            .push(parse_quote!(<#ty as basenn::BuildOnDevice<Elem, Dev>>::Built: basenn::Module<#last_ty, Error = #err>));
+                        last_ty = parse_quote!(<<#ty as basenn::BuildOnDevice<Elem, Dev>>::Built as basenn::Module<#last_ty>>::Output);
                     });
                 }
                 Fields::Unnamed(ref fields) => {
@@ -250,11 +250,11 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         let ty = &f.ty;
                         where_clause
                             .predicates
-                            .push(parse_quote!(#ty: basenn::BuildOnDevice<E, D>));
+                            .push(parse_quote!(#ty: basenn::BuildOnDevice<Elem, Dev>));
                         where_clause
                             .predicates
-                            .push(parse_quote!(<#ty as basenn::BuildOnDevice<E, D>>::Built: basenn::Module<#last_ty, Error = #err>));
-                        last_ty = parse_quote!(<<#ty as basenn::BuildOnDevice<E, D>>::Built as basenn::Module<#last_ty>>::Output);
+                            .push(parse_quote!(<#ty as basenn::BuildOnDevice<Elem, Dev>>::Built: basenn::Module<#last_ty, Error = #err>));
+                        last_ty = parse_quote!(<<#ty as basenn::BuildOnDevice<Elem, Dev>>::Built as basenn::Module<#last_ty>>::Output);
                     });
                 }
                 Fields::Unit => {}
@@ -374,28 +374,28 @@ pub fn update_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         .params
         .iter()
         .position(|param| match param {
-            syn::GenericParam::Type(type_param) if type_param.ident == "E" => true,
+            syn::GenericParam::Type(type_param) if type_param.ident == "Elem" => true,
             _ => false,
         })
         .is_none()
     {
         custom_generics
             .params
-            .push(parse_quote!(E: dfdx::prelude::Dtype));
+            .push(parse_quote!(Elem: dfdx::prelude::Dtype));
     }
 
     if custom_generics
         .params
         .iter()
         .position(|param| match param {
-            syn::GenericParam::Type(type_param) if type_param.ident == "D" => true,
+            syn::GenericParam::Type(type_param) if type_param.ident == "Dev" => true,
             _ => false,
         })
         .is_none()
     {
         custom_generics
             .params
-            .push(parse_quote!(D: dfdx::prelude::Device<E>));
+            .push(parse_quote!(Dev: dfdx::prelude::Device<Elem>));
     }
 
     let where_clause = input.generics.make_where_clause();
@@ -409,7 +409,7 @@ pub fn update_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                         f, where_clause, ty,
                         tensor={optimizer.update_tensor(&mut self.#name, gradients)?;},
                         module={self.#name.try_update_params(optimizer, gradients)?;},
-                        bound=basenn::UpdateParams<E, D>
+                        bound=basenn::UpdateParams<Elem, Dev>
                     )
                 });
                 quote! { #(#updates)* }
@@ -422,7 +422,7 @@ pub fn update_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                         f, where_clause, ty,
                         tensor={optimizer.update_tensor(&mut self.#index, gradients)?;},
                         module={self.#index.try_update_params(optimizer, gradients)?;},
-                        bound=basenn::UpdateParams<E, D>
+                        bound=basenn::UpdateParams<Elem, Dev>
                     )
                 });
                 quote! { #(#updates)* }
@@ -437,12 +437,12 @@ pub fn update_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     let (_, ty_generics, where_clause) = input.generics.split_for_impl();
 
     proc_macro::TokenStream::from(quote! {
-        impl #impl_generics basenn::UpdateParams<E, D> for #struct_name #ty_generics #where_clause {
-            fn try_update_params<Optim: basenn::Optimizer<E, D>>(
+        impl #impl_generics basenn::UpdateParams<Elem, Dev> for #struct_name #ty_generics #where_clause {
+            fn try_update_params<Optim: basenn::Optimizer<Elem, Dev>>(
                 &mut self,
                 optimizer: &mut Optim,
-                gradients: &dfdx::tensor::Gradients<E, D>,
-            ) -> Result<(), D::Err> {
+                gradients: &dfdx::tensor::Gradients<Elem, Dev>,
+            ) -> Result<(), Dev::Err> {
                 #updates
                 Ok(())
             }
@@ -461,28 +461,28 @@ pub fn zero_grads(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .params
         .iter()
         .position(|param| match param {
-            syn::GenericParam::Type(type_param) if type_param.ident == "E" => true,
+            syn::GenericParam::Type(type_param) if type_param.ident == "Elem" => true,
             _ => false,
         })
         .is_none()
     {
         custom_generics
             .params
-            .push(parse_quote!(E: dfdx::prelude::Dtype));
+            .push(parse_quote!(Elem: dfdx::prelude::Dtype));
     }
 
     if custom_generics
         .params
         .iter()
         .position(|param| match param {
-            syn::GenericParam::Type(type_param) if type_param.ident == "D" => true,
+            syn::GenericParam::Type(type_param) if type_param.ident == "Dev" => true,
             _ => false,
         })
         .is_none()
     {
         custom_generics
             .params
-            .push(parse_quote!(D: dfdx::prelude::Device<E>));
+            .push(parse_quote!(Dev: dfdx::prelude::Device<Elem>));
     }
 
     let where_clause = input.generics.make_where_clause();
@@ -499,7 +499,7 @@ pub fn zero_grads(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             self.#name.device().try_fill_with_zeros(grad)?;
                         },
                         module={self.#name.try_zero_grads(grads)?;},
-                        bound=basenn::ZeroGrads<E, D>
+                        bound=basenn::ZeroGrads<Elem, Dev>
                     )
                 });
                 quote! { #(#zero_grads)* }
@@ -515,7 +515,7 @@ pub fn zero_grads(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             self.#index.device().try_fill_with_zeros(grad)?;
                         },
                         module={self.#index.try_zero_grads(grads)?;},
-                        bound=basenn::ZeroGrads<E, D>
+                        bound=basenn::ZeroGrads<Elem, Dev>
                     )
                 });
                 quote! { #(#zero_grads)* }
@@ -530,8 +530,8 @@ pub fn zero_grads(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let (_, ty_generics, where_clause) = input.generics.split_for_impl();
 
     proc_macro::TokenStream::from(quote! {
-        impl #impl_generics basenn::ZeroGrads<E, D> for #name #ty_generics #where_clause {
-            fn try_zero_grads(&self, grads: &mut dfdx::prelude::Gradients<E, D>) -> Result<(), D::Err> {
+        impl #impl_generics basenn::ZeroGrads<Elem, Dev> for #name #ty_generics #where_clause {
+            fn try_zero_grads(&self, grads: &mut dfdx::prelude::Gradients<Elem, Dev>) -> Result<(), Dev::Err> {
                 #zero_grads
                 Ok(())
             }

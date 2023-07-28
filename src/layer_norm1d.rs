@@ -30,9 +30,9 @@ impl<E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for DynLayerNorm1D {
 }
 
 #[derive(Clone, Debug, UpdateParams, ZeroGrads, ToDtype, ToDevice)]
-pub struct LayerNorm1D<M: Dim, E: Dtype, D: Device<E>> {
-    pub gamma: Tensor<(M,), E, D>,
-    pub beta: Tensor<(M,), E, D>,
+pub struct LayerNorm1D<M: Dim, Elem: Dtype, Dev: Device<Elem>> {
+    pub gamma: Tensor<(M,), Elem, Dev>,
+    pub beta: Tensor<(M,), Elem, Dev>,
     pub epsilon: f64,
 }
 
