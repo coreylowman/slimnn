@@ -6,13 +6,14 @@ macro_rules! match_type {
     ($F:ident, $Where:ident, $Ty:ident, tensor=$TensorStmt:tt, module=$ModuleStmt:tt, bound=$Bound:path) => {
         match $Ty {
             syn::Type::Path(path)=> {
+                dbg!(&path.path.segments[0].ident);
                 match path.path.segments[0].ident.to_string().as_str() {
                     "bool" => quote_spanned!($F.span() => ();),
                     "i8" | "i16" | "i32" | "i64" |"isize" => quote_spanned!($F.span() => ();),
                     "u8" | "u16" | "u32" | "u64" |"usize" => quote_spanned!($F.span() => ();),
                     "f32" | "f64" => quote_spanned!($F.span() => ();),
-                    "Tensor" => quote_spanned!($F.span() => $TensorStmt;),
                     "Const" => quote_spanned!($F.span() => ();),
+                    "Tensor" => quote_spanned!($F.span() => $TensorStmt;),
                     _ => {
                         $Where
                             .predicates
@@ -61,7 +62,7 @@ pub fn functional(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .params
         .push(parse_quote!(T: dfdx::prelude::Tape<Elem, Dev>));
 
-    let (builder_impl, builder_ty, builder_where) = input.generics.split_for_impl();
+    let (_, builder_ty, builder_where) = input.generics.split_for_impl();
     let (built_impl, _, built_where) = built_generics.split_for_impl();
     let (module_impl, _, _) = module_generics.split_for_impl();
 
@@ -98,18 +99,17 @@ pub fn functional(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 #[proc_macro_derive(BuildOnDevice)]
-pub fn build_on_device(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn build_on_device(_: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::new()
 }
 
 #[proc_macro_derive(ToDtype)]
-pub fn to_dtype(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let mut input = parse_macro_input!(input as DeriveInput);
+pub fn to_dtype(_: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::new()
 }
 
 #[proc_macro_derive(ToDevice)]
-pub fn to_device(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn to_device(_: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::new()
 }
 
