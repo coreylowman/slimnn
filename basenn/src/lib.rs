@@ -1,3 +1,5 @@
+mod tuples;
+
 use dfdx::prelude::{Device, Dtype, Gradients, Shape, Tensor};
 
 pub trait Module<X> {

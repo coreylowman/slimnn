@@ -1,5 +1,8 @@
 use derives::*;
-use dfdx::{shapes::Const, tensor_ops::TryPool2D};
+use dfdx::{
+    shapes::{Const, Dtype},
+    tensor_ops::{Device, TryPool2D},
+};
 
 #[derive(Debug, Default, Clone, UpdateParams, ZeroGrads, ToDtype, ToDevice)]
 pub struct ConstMaxPool2D<
@@ -8,6 +11,21 @@ pub struct ConstMaxPool2D<
     const PADDING: usize = 0,
     const DILATION: usize = 1,
 >;
+
+impl<
+        const K: usize,
+        const S: usize,
+        const P: usize,
+        const L: usize,
+        Elem: Dtype,
+        Dev: Device<Elem>,
+    > crate::BuildOnDevice<Elem, Dev> for ConstMaxPool2D<K, S, P, L>
+{
+    type Built = Self;
+    fn try_build_on_device(&self, _: &Dev) -> Result<Self::Built, <Dev>::Err> {
+        Ok(self.clone())
+    }
+}
 
 impl<
         const K: usize,
@@ -37,6 +55,13 @@ pub struct DynMaxPool2D {
     pub stride: usize,
     pub padding: usize,
     pub dilation: usize,
+}
+
+impl<Elem: Dtype, Dev: Device<Elem>> crate::BuildOnDevice<Elem, Dev> for DynMaxPool2D {
+    type Built = Self;
+    fn try_build_on_device(&self, _: &Dev) -> Result<Self::Built, <Dev>::Err> {
+        Ok(self.clone())
+    }
 }
 
 impl<Img: TryPool2D<usize, usize, usize, usize>> crate::Module<Img> for DynMaxPool2D {

@@ -16,4 +16,9 @@ where
         let y = self.0.try_forward(x.clone())?;
         x.try_add(y)
     }
+
+    fn try_forward_mut(&mut self, x: X) -> Result<Self::Output, Self::Error> {
+        let y = self.0.try_forward_mut(x.clone())?;
+        x.try_add(y)
+    }
 }

@@ -1,10 +1,21 @@
-use derives::{ToDevice, ToDtype, UpdateParams, ZeroGrads};
+use derives::*;
 use dfdx::{
     prelude::{Device, Dim, Dtype, Tape, Tensor},
     tensor_ops::MeanTo,
 };
 
-#[derive(Default, Debug, Clone, Copy, ZeroGrads, UpdateParams, ToDevice, ToDtype)]
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    Copy,
+    BuildOnDevice,
+    ResetParams,
+    ZeroGrads,
+    UpdateParams,
+    ToDevice,
+    ToDtype,
+)]
 pub struct AvgPoolGlobal;
 
 impl<C: Dim, H: Dim, W: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>>
