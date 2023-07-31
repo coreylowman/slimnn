@@ -1,45 +1,32 @@
-use crate::{
-    bias1d::{ConstBias1D, DynBias1D},
-    matmul::{ConstMatMul, DynMatMul},
-};
+use crate::{bias1d::Bias1D, matmul::MatMul};
 
 use derives::Sequential;
+use dfdx::shapes::Dim;
 
 #[derive(Default, Debug, Clone, Copy, Sequential)]
-pub struct ConstLinearUnbiased<const I: usize, const O: usize> {
-    pub matmul: ConstMatMul<I, O>,
+pub struct LinearUnbiased<I: Dim, O: Dim> {
+    pub matmul: MatMul<I, O>,
 }
 
-#[derive(Default, Debug, Clone, Copy, Sequential)]
-pub struct ConstLinear<const I: usize, const O: usize> {
-    pub matmul: ConstMatMul<I, O>,
-    pub bias: ConstBias1D<O>,
-}
-
-#[derive(Debug, Clone, Copy, Sequential)]
-pub struct DynLinearUnbiased {
-    pub matmul: DynMatMul,
-}
-
-impl DynLinearUnbiased {
-    pub fn new(inp: usize, out: usize) -> Self {
+impl<I: Dim, O: Dim> LinearUnbiased<I, O> {
+    pub fn new(inp: I, out: O) -> Self {
         Self {
-            matmul: DynMatMul { inp, out },
+            matmul: MatMul { inp, out },
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, Sequential)]
-pub struct DynLinear {
-    pub matmul: DynMatMul,
-    pub bias: DynBias1D,
+#[derive(Default, Debug, Clone, Copy, Sequential)]
+pub struct Linear<I: Dim, O: Dim> {
+    pub matmul: MatMul<I, O>,
+    pub bias: Bias1D<O>,
 }
 
-impl DynLinear {
-    pub fn new(inp: usize, out: usize) -> Self {
+impl<I: Dim, O: Dim> Linear<I, O> {
+    pub fn new(inp: I, out: O) -> Self {
         Self {
-            matmul: DynMatMul { inp, out },
-            bias: DynBias1D(out),
+            matmul: MatMul { inp, out },
+            bias: Bias1D(out),
         }
     }
 }

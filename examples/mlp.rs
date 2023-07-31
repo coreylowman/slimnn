@@ -1,26 +1,23 @@
 use basenn::{BuildModuleExt, Module};
-use slimnn::{
-    linear::{ConstLinear, DynLinear},
-    relu::ReLU,
-    *,
-};
+use dfdx::shapes::Const;
+use slimnn::{linear::Linear, relu::ReLU, *};
 
 mod arch {
     use super::*;
 
     #[derive(Default, Clone, Sequential)]
     pub struct ConstMlp {
-        pub l1: ConstLinear<3, 5>,
+        pub l1: Linear<Const<3>, Const<5>>,
         pub act1: ReLU,
-        pub l2: ConstLinear<5, 10>,
+        pub l2: Linear<Const<5>, Const<10>>,
         pub act2: ReLU,
     }
 
     #[derive(Clone, Sequential)]
     pub struct DynMlp {
-        pub l1: DynLinear,
+        pub l1: Linear<usize, usize>,
         pub act1: ReLU,
-        pub l2: DynLinear,
+        pub l2: Linear<usize, usize>,
         pub act2: ReLU,
     }
 }
@@ -38,9 +35,9 @@ fn main() {
 
     {
         let structure = arch::DynMlp {
-            l1: DynLinear::new(3, 5),
+            l1: slimnn::linear::Linear::new(3, 5),
             act1: Default::default(),
-            l2: DynLinear::new(5, 10),
+            l2: slimnn::linear::Linear::new(5, 10),
             act2: Default::default(),
         };
         let module = dev.build_module_ext::<f32>(structure);

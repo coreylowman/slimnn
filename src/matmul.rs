@@ -2,49 +2,33 @@ use basenn::*;
 
 use derives::*;
 use dfdx::{
-    prelude::{Const, Device, Dim, Dtype, Shape, Tape, Tensor},
-    shapes::HasShape,
-    tensor::HasErr,
+    prelude::{Device, Dim, Dtype, HasErr, HasShape, Shape, Tape, Tensor},
     tensor_ops::TryMatMul,
 };
 use rand_distr::Uniform;
 
-#[derive(Default, Clone, Copy, Debug)]
-pub struct ConstMatMul<const I: usize, const O: usize>;
-
-impl<const I: usize, const O: usize, E: Dtype, D: Device<E>> BuildOnDevice<E, D>
-    for ConstMatMul<I, O>
-{
-    type Built = MatMul<Const<I>, Const<O>, E, D>;
-    fn try_build_on_device(&self, device: &D) -> Result<Self::Built, D::Err> {
-        Ok(MatMul {
-            weight: device.try_zeros()?,
-        })
-    }
+#[derive(Clone, Copy, Debug, Default)]
+pub struct MatMul<I: Dim, O: Dim> {
+    pub inp: I,
+    pub out: O,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct DynMatMul {
-    pub inp: usize,
-    pub out: usize,
-}
-
-impl<E: Dtype, D: Device<E>> BuildOnDevice<E, D> for DynMatMul {
-    type Built = MatMul<usize, usize, E, D>;
+impl<I: Dim, O: Dim, E: Dtype, D: Device<E>> BuildOnDevice<E, D> for MatMul<I, O> {
+    type Built = DeviceMatMul<I, O, E, D>;
     fn try_build_on_device(&self, device: &D) -> Result<Self::Built, D::Err> {
-        Ok(MatMul {
+        Ok(DeviceMatMul {
             weight: device.try_zeros_like(&(self.inp, self.out))?,
         })
     }
 }
 
 #[derive(Clone, Debug, UpdateParams, ZeroGrads, ToDtype, ToDevice)]
-pub struct MatMul<I: Dim, O: Dim, Elem: Dtype, Dev: Device<Elem>> {
+pub struct DeviceMatMul<I: Dim, O: Dim, Elem: Dtype, Dev: Device<Elem>> {
     pub weight: Tensor<(I, O), Elem, Dev>,
 }
 
 // NOTE: others can simply #[derive(ResetParams)]
-impl<I: Dim, O: Dim, E, D: Device<E>> ResetParams for MatMul<I, O, E, D>
+impl<I: Dim, O: Dim, E, D: Device<E>> ResetParams for DeviceMatMul<I, O, E, D>
 where
     E: Dtype + num_traits::Float + rand_distr::uniform::SampleUniform,
 {
@@ -57,7 +41,7 @@ where
 }
 
 impl<S: Shape, I: Dim, O: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>> Module<Tensor<S, E, D, T>>
-    for MatMul<I, O, E, D>
+    for DeviceMatMul<I, O, E, D>
 where
     Tensor<S, E, D, T>: TryMatMul<Tensor<(I, O), E, D>>,
 {

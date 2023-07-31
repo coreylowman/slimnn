@@ -2,40 +2,29 @@ use basenn::*;
 
 use derives::*;
 use dfdx::{
-    prelude::{Const, Device, Dim, Dtype, Tape, Tensor},
+    prelude::{Device, Dim, Dtype, Tape, Tensor},
     tensor_ops::{BroadcastTo, TryAdd},
 };
 
 #[derive(Default, Clone, Copy, Debug)]
-pub struct ConstBias1D<const I: usize>;
+#[repr(transparent)]
+pub struct Bias1D<I: Dim>(pub I);
 
-impl<const I: usize, E: Dtype, D: Device<E>> BuildOnDevice<E, D> for ConstBias1D<I> {
-    type Built = Bias1D<Const<I>, E, D>;
+impl<I: Dim, E: Dtype, D: Device<E>> BuildOnDevice<E, D> for Bias1D<I> {
+    type Built = DeviceBias1D<I, E, D>;
     fn try_build_on_device(&self, device: &D) -> Result<Self::Built, D::Err> {
-        Ok(Bias1D {
-            bias: device.try_zeros()?,
-        })
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct DynBias1D(pub usize);
-
-impl<E: Dtype, D: Device<E>> BuildOnDevice<E, D> for DynBias1D {
-    type Built = Bias1D<usize, E, D>;
-    fn try_build_on_device(&self, device: &D) -> Result<Self::Built, D::Err> {
-        Ok(Bias1D {
+        Ok(DeviceBias1D {
             bias: device.try_zeros_like(&(self.0,))?,
         })
     }
 }
 
 #[derive(Clone, Debug, UpdateParams, ZeroGrads, ToDtype, ToDevice)]
-pub struct Bias1D<I: Dim, Elem: Dtype, Dev: Device<Elem>> {
+pub struct DeviceBias1D<I: Dim, Elem: Dtype, Dev: Device<Elem>> {
     pub bias: Tensor<(I,), Elem, Dev>,
 }
 
-impl<I: Dim, E: Dtype, D: Device<E>> ResetParams for Bias1D<I, E, D> {
+impl<I: Dim, E: Dtype, D: Device<E>> ResetParams for DeviceBias1D<I, E, D> {
     type Error = D::Err;
     fn try_reset_params(&mut self) -> Result<(), Self::Error> {
         self.bias.try_fill_with_zeros()
@@ -43,7 +32,7 @@ impl<I: Dim, E: Dtype, D: Device<E>> ResetParams for Bias1D<I, E, D> {
 }
 
 impl<I: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>> Module<Tensor<(I,), E, D, T>>
-    for Bias1D<I, E, D>
+    for DeviceBias1D<I, E, D>
 {
     type Output = Tensor<(I,), E, D, T>;
     type Error = D::Err;
@@ -53,7 +42,7 @@ impl<I: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>> Module<Tensor<(I,), E, D, T>
 }
 
 impl<Batch: Dim, I: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>> Module<Tensor<(Batch, I), E, D, T>>
-    for Bias1D<I, E, D>
+    for DeviceBias1D<I, E, D>
 {
     type Output = Tensor<(Batch, I), E, D, T>;
     type Error = D::Err;
@@ -63,7 +52,7 @@ impl<Batch: Dim, I: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>> Module<Tensor<(B
 }
 
 impl<Batch: Dim, Seq: Dim, I: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>>
-    Module<Tensor<(Batch, Seq, I), E, D, T>> for Bias1D<I, E, D>
+    Module<Tensor<(Batch, Seq, I), E, D, T>> for DeviceBias1D<I, E, D>
 {
     type Output = Tensor<(Batch, Seq, I), E, D, T>;
     type Error = D::Err;

@@ -2,29 +2,13 @@ use derives::*;
 use dfdx::prelude::*;
 
 #[derive(Default, Clone, Copy, Debug)]
-pub struct ConstBatchNorm2D<const C: usize>;
+#[repr(transparent)]
+pub struct BatchNorm2D<C: Dim>(pub C);
 
-impl<const M: usize, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for ConstBatchNorm2D<M> {
-    type Built = BatchNorm2D<Const<M>, E, D>;
+impl<C: Dim, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for BatchNorm2D<C> {
+    type Built = DeviceBatchNorm2D<C, E, D>;
     fn try_build_on_device(&self, device: &D) -> Result<Self::Built, D::Err> {
-        Ok(BatchNorm2D {
-            scale: device.try_ones()?,
-            bias: device.try_zeros()?,
-            running_mean: device.try_zeros()?,
-            running_var: device.try_ones()?,
-            epsilon: 1e-5,
-            momentum: 0.1,
-        })
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct DynBatchNorm2D(pub usize);
-
-impl<E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for DynBatchNorm2D {
-    type Built = BatchNorm2D<usize, E, D>;
-    fn try_build_on_device(&self, device: &D) -> Result<Self::Built, D::Err> {
-        Ok(BatchNorm2D {
+        Ok(DeviceBatchNorm2D {
             scale: device.try_ones_like(&(self.0,))?,
             bias: device.try_zeros_like(&(self.0,))?,
             running_mean: device.try_zeros_like(&(self.0,))?,
@@ -36,7 +20,7 @@ impl<E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for DynBatchNorm2D {
 }
 
 #[derive(Clone, Debug, ToDtype, ToDevice)]
-pub struct BatchNorm2D<C: Dim, E: Dtype, D: Device<E>> {
+pub struct DeviceBatchNorm2D<C: Dim, E: Dtype, D: Device<E>> {
     pub scale: Tensor<(C,), E, D>,
     pub bias: Tensor<(C,), E, D>,
     pub running_mean: Tensor<(C,), E, D>,
@@ -45,7 +29,7 @@ pub struct BatchNorm2D<C: Dim, E: Dtype, D: Device<E>> {
     pub momentum: f64,
 }
 
-impl<C: Dim, E: Dtype, D: Device<E>> crate::ResetParams for BatchNorm2D<C, E, D> {
+impl<C: Dim, E: Dtype, D: Device<E>> crate::ResetParams for DeviceBatchNorm2D<C, E, D> {
     type Error = D::Err;
     fn try_reset_params(&mut self) -> Result<(), Self::Error> {
         self.scale.try_fill_with_ones()?;
@@ -56,7 +40,7 @@ impl<C: Dim, E: Dtype, D: Device<E>> crate::ResetParams for BatchNorm2D<C, E, D>
 }
 
 // NOTE: can't derive because we don't want to update running_mean/running_var
-impl<C: Dim, E: Dtype, D: Device<E>> crate::UpdateParams<E, D> for BatchNorm2D<C, E, D> {
+impl<C: Dim, E: Dtype, D: Device<E>> crate::UpdateParams<E, D> for DeviceBatchNorm2D<C, E, D> {
     fn try_update_params<Optim: crate::Optimizer<E, D>>(
         &mut self,
         optimizer: &mut Optim,
@@ -68,7 +52,7 @@ impl<C: Dim, E: Dtype, D: Device<E>> crate::UpdateParams<E, D> for BatchNorm2D<C
 }
 
 // NOTE: can't derive because we don't want to zero grad for running_mean/running_var
-impl<C: Dim, E: Dtype, D: Device<E>> crate::ZeroGrads<E, D> for BatchNorm2D<C, E, D> {
+impl<C: Dim, E: Dtype, D: Device<E>> crate::ZeroGrads<E, D> for DeviceBatchNorm2D<C, E, D> {
     fn try_zero_grads(&self, grads: &mut Gradients<E, D>) -> Result<(), <D>::Err> {
         self.scale
             .device()
@@ -80,7 +64,7 @@ impl<C: Dim, E: Dtype, D: Device<E>> crate::ZeroGrads<E, D> for BatchNorm2D<C, E
 }
 
 impl<C: Dim, H: Dim, W: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>>
-    crate::Module<Tensor<(C, H, W), E, D, T>> for BatchNorm2D<C, E, D>
+    crate::Module<Tensor<(C, H, W), E, D, T>> for DeviceBatchNorm2D<C, E, D>
 {
     type Output = Tensor<(C, H, W), E, D, T>;
     type Error = D::Err;
@@ -98,7 +82,7 @@ impl<C: Dim, H: Dim, W: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>>
 }
 
 impl<Batch: Dim, C: Dim, H: Dim, W: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>>
-    crate::Module<Tensor<(Batch, C, H, W), E, D, T>> for BatchNorm2D<C, E, D>
+    crate::Module<Tensor<(Batch, C, H, W), E, D, T>> for DeviceBatchNorm2D<C, E, D>
 {
     type Output = Tensor<(Batch, C, H, W), E, D, T>;
     type Error = D::Err;
@@ -118,7 +102,7 @@ impl<Batch: Dim, C: Dim, H: Dim, W: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>>
     }
 }
 
-impl<C: Dim, E: Dtype, D: Device<E>> BatchNorm2D<C, E, D> {
+impl<C: Dim, E: Dtype, D: Device<E>> DeviceBatchNorm2D<C, E, D> {
     /// generic batchnorm forward for training
     fn train_fwd<S: Shape, T: Tape<E, D>, Ax: Axes>(
         &mut self,
