@@ -23,9 +23,8 @@ pub struct DeviceLayerNorm1D<M: Dim, Elem: Dtype, Dev: Device<Elem>> {
     pub epsilon: f64,
 }
 
-impl<M: Dim, E: Dtype, D: Device<E>> crate::ResetParams for DeviceLayerNorm1D<M, E, D> {
-    type Error = D::Err;
-    fn try_reset_params(&mut self) -> Result<(), Self::Error> {
+impl<M: Dim, E: Dtype, D: Device<E>> crate::ResetParams<E, D> for DeviceLayerNorm1D<M, E, D> {
+    fn try_reset_params(&mut self) -> Result<(), D::Err> {
         self.gamma.try_fill_with_ones()?;
         self.beta.try_fill_with_zeros()
     }

@@ -28,12 +28,11 @@ pub struct DeviceMatMul<I: Dim, O: Dim, Elem: Dtype, Dev: Device<Elem>> {
 }
 
 // NOTE: others can simply #[derive(ResetParams)]
-impl<I: Dim, O: Dim, E, D: Device<E>> ResetParams for DeviceMatMul<I, O, E, D>
+impl<I: Dim, O: Dim, E, D: Device<E>> ResetParams<E, D> for DeviceMatMul<I, O, E, D>
 where
     E: Dtype + num_traits::Float + rand_distr::uniform::SampleUniform,
 {
-    type Error = D::Err;
-    fn try_reset_params(&mut self) -> Result<(), Self::Error> {
+    fn try_reset_params(&mut self) -> Result<(), D::Err> {
         let (i, _) = self.weight.shape();
         let scale = E::from_f64(1.0 / (i.size() as f64).sqrt()).unwrap();
         self.weight.try_fill_with_distr(Uniform::new(-scale, scale))

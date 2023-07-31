@@ -37,12 +37,11 @@ pub trait BuildOnDevice<E: Dtype, D: Device<E>>: Clone {
     fn try_build_on_device(&self, device: &D) -> Result<Self::Built, D::Err>;
 }
 
-pub trait ResetParams {
-    type Error: std::fmt::Debug;
+pub trait ResetParams<E: Dtype, D: Device<E>> {
     fn reset_params(&mut self) {
         self.try_reset_params().unwrap()
     }
-    fn try_reset_params(&mut self) -> Result<(), Self::Error>;
+    fn try_reset_params(&mut self) -> Result<(), D::Err>;
 }
 
 pub trait UpdateParams<E: Dtype, D: Device<E>> {
@@ -64,7 +63,7 @@ pub trait BuildModuleExt<M>: Sized {
     fn build_module_ext<E: Dtype>(&self, m: M) -> M::Built
     where
         M: BuildOnDevice<E, Self>,
-        M::Built: ResetParams,
+        M::Built: ResetParams<E, Self>,
         Self: Device<E>,
     {
         let mut module = m.build_on_device(self);

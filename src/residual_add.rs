@@ -1,10 +1,22 @@
+use basenn::BuildOnDevice;
 use derives::*;
-use dfdx::tensor_ops::TryAdd;
+use dfdx::{
+    shapes::Dtype,
+    tensor_ops::{Device, TryAdd},
+};
 
 use crate::Module;
 
 #[derive(Default, Clone, Debug, ResetParams, ZeroGrads, UpdateParams, ToDtype, ToDevice)]
 pub struct ResidualAdd<T>(pub T);
+
+impl<E: Dtype, D: Device<E>, T: BuildOnDevice<E, D>> BuildOnDevice<E, D> for ResidualAdd<T> {
+    type Built = ResidualAdd<T::Built>;
+    fn try_build_on_device(&self, device: &D) -> Result<Self::Built, <D>::Err> {
+        let t = self.0.try_build_on_device(device)?;
+        Ok(ResidualAdd(t))
+    }
+}
 
 impl<X: Clone, T: Module<X>> Module<X> for ResidualAdd<T>
 where

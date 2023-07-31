@@ -24,9 +24,8 @@ pub struct DeviceBias1D<I: Dim, Elem: Dtype, Dev: Device<Elem>> {
     pub bias: Tensor<(I,), Elem, Dev>,
 }
 
-impl<I: Dim, E: Dtype, D: Device<E>> ResetParams for DeviceBias1D<I, E, D> {
-    type Error = D::Err;
-    fn try_reset_params(&mut self) -> Result<(), Self::Error> {
+impl<I: Dim, E: Dtype, D: Device<E>> ResetParams<E, D> for DeviceBias1D<I, E, D> {
+    fn try_reset_params(&mut self) -> Result<(), D::Err> {
         self.bias.try_fill_with_zeros()
     }
 }

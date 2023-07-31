@@ -12,6 +12,7 @@ macro_rules! match_type {
                     "u8" | "u16" | "u32" | "u64" |"usize" => quote_spanned!($F.span() => ();),
                     "f32" | "f64" => quote_spanned!($F.span() => ();),
                     "Tensor" => quote_spanned!($F.span() => $TensorStmt;),
+                    "Const" => quote_spanned!($F.span() => ();),
                     _ => {
                         $Where
                             .predicates
@@ -72,9 +73,8 @@ pub fn functional(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         }
 
-        impl #builder_impl basenn::ResetParams for #name #builder_ty #builder_where {
-            type Error = std::convert::Infallible;
-            fn try_reset_params(&mut self) -> Result<(), Self::Error> { Ok(()) }
+        impl #built_impl basenn::ResetParams<Elem, Dev> for #name #builder_ty #builder_where {
+            fn try_reset_params(&mut self) -> Result<(), Dev::Err> { Ok(()) }
         }
 
         impl #built_impl basenn::UpdateParams<Elem, Dev> for #name #builder_ty #built_where {
@@ -320,6 +320,35 @@ pub fn reset_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let name = input.ident;
 
+    let mut custom_generics = input.generics.clone();
+    if custom_generics
+        .params
+        .iter()
+        .position(|param| match param {
+            syn::GenericParam::Type(type_param) if type_param.ident == "Elem" => true,
+            _ => false,
+        })
+        .is_none()
+    {
+        custom_generics
+            .params
+            .push(parse_quote!(Elem: dfdx::prelude::Dtype));
+    }
+
+    if custom_generics
+        .params
+        .iter()
+        .position(|param| match param {
+            syn::GenericParam::Type(type_param) if type_param.ident == "Dev" => true,
+            _ => false,
+        })
+        .is_none()
+    {
+        custom_generics
+            .params
+            .push(parse_quote!(Dev: dfdx::prelude::Device<Elem>));
+    }
+
     let where_clause = input.generics.make_where_clause();
     let resets = match &input.data {
         Data::Struct(ref obj) => match obj.fields {
@@ -331,7 +360,7 @@ pub fn reset_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         f, where_clause, ty,
                         tensor={self.#name.try_reset_params().unwrap();},
                         module={self.#name.try_reset_params().unwrap();},
-                        bound=basenn::ResetParams
+                        bound=basenn::ResetParams<Elem, Dev>
                     )
                 });
                 quote! { #(#resets)* }
@@ -344,7 +373,7 @@ pub fn reset_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         f, where_clause, ty,
                         tensor={self.#index.try_reset_params().unwrap();},
                         module={self.#index.try_reset_params().unwrap();},
-                        bound=basenn::ResetParams
+                        bound=basenn::ResetParams<Elem, Dev>
                     )
                 });
                 quote! { #(#resets)* }
@@ -355,12 +384,12 @@ pub fn reset_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         Data::Union(_) => unimplemented!("ResetParams not implemented for unions."),
     };
 
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+    let (impl_generics, _, _) = custom_generics.split_for_impl();
+    let (_, ty_generics, where_clause) = input.generics.split_for_impl();
 
     proc_macro::TokenStream::from(quote! {
-        impl #impl_generics basenn::ResetParams for #name #ty_generics #where_clause {
-            type Error = std::convert::Infallible;
-            fn try_reset_params(&mut self) -> Result<(), Self::Error> {
+        impl #impl_generics basenn::ResetParams<Elem, Dev> for #name #ty_generics #where_clause {
+            fn try_reset_params(&mut self) -> Result<(), Dev::Err> {
                 #resets
                 Ok(())
             }

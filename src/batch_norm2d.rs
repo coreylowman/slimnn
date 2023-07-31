@@ -29,9 +29,8 @@ pub struct DeviceBatchNorm2D<C: Dim, E: Dtype, D: Device<E>> {
     pub momentum: f64,
 }
 
-impl<C: Dim, E: Dtype, D: Device<E>> crate::ResetParams for DeviceBatchNorm2D<C, E, D> {
-    type Error = D::Err;
-    fn try_reset_params(&mut self) -> Result<(), Self::Error> {
+impl<C: Dim, E: Dtype, D: Device<E>> crate::ResetParams<E, D> for DeviceBatchNorm2D<C, E, D> {
+    fn try_reset_params(&mut self) -> Result<(), D::Err> {
         self.scale.try_fill_with_ones()?;
         self.bias.try_fill_with_zeros()?;
         self.running_mean.try_fill_with_zeros()?;

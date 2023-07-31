@@ -11,6 +11,13 @@ macro_rules! tuple_impls {
             }
         }
 
+        impl<Dev: Device<Elem>, Elem: Dtype, $($name: crate::ResetParams<Elem, Dev>),+> crate::ResetParams<Elem, Dev> for ($($name,)+) {
+            fn try_reset_params(&mut self) -> Result<(), Dev::Err> {
+                $(self.$idx.try_reset_params()?;)+
+                Ok(())
+            }
+        }
+
         /*This macro expands like this for a 4-tuple:
 
         impl<

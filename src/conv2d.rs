@@ -82,7 +82,7 @@ where
     pub groups: Groups,
 }
 
-impl<I: Dim, O: Dim, K: Dim, S: Dim, P: Dim, L: Dim, G: Dim, E, D> crate::ResetParams
+impl<I: Dim, O: Dim, K: Dim, S: Dim, P: Dim, L: Dim, G: Dim, E, D> crate::ResetParams<E, D>
     for DeviceConv2D<I, O, K, S, P, L, G, E, D>
 where
     I: std::ops::Div<G>,
@@ -90,8 +90,7 @@ where
     E: Dtype + num_traits::Float + rand_distr::uniform::SampleUniform,
     D: Device<E>,
 {
-    type Error = D::Err;
-    fn try_reset_params(&mut self) -> Result<(), Self::Error> {
+    fn try_reset_params(&mut self) -> Result<(), D::Err> {
         let (_, i_over_g, k, _) = self.weight.shape();
         let scale = E::from_f64(1.0 / (k.size() * k.size() * i_over_g.size()) as f64).unwrap();
         let b = scale.sqrt();

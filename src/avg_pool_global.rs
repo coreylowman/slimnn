@@ -4,19 +4,15 @@ use dfdx::{
     tensor_ops::MeanTo,
 };
 
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    Copy,
-    BuildOnDevice,
-    ResetParams,
-    ZeroGrads,
-    UpdateParams,
-    ToDevice,
-    ToDtype,
-)]
+#[derive(Default, Debug, Clone, Copy, ResetParams, ZeroGrads, UpdateParams, ToDevice, ToDtype)]
 pub struct AvgPoolGlobal;
+
+impl<E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for AvgPoolGlobal {
+    type Built = Self;
+    fn try_build_on_device(&self, _: &D) -> Result<Self::Built, <D>::Err> {
+        Ok(self.clone())
+    }
+}
 
 impl<C: Dim, H: Dim, W: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>>
     crate::Module<Tensor<(C, H, W), E, D, T>> for AvgPoolGlobal

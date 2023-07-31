@@ -1,5 +1,9 @@
+use basenn::BuildOnDevice;
 use derives::*;
-use dfdx::tensor_ops::TryAdd;
+use dfdx::{
+    shapes::Dtype,
+    tensor_ops::{Device, TryAdd},
+};
 
 use crate::Module;
 
@@ -7,6 +11,17 @@ use crate::Module;
     Default, Clone, Debug, BuildOnDevice, ResetParams, ZeroGrads, UpdateParams, ToDevice, ToDtype,
 )]
 pub struct GeneralizedAdd<T, U>(pub T, pub U);
+
+impl<E: Dtype, D: Device<E>, T: BuildOnDevice<E, D>, U: BuildOnDevice<E, D>> BuildOnDevice<E, D>
+    for GeneralizedAdd<T, U>
+{
+    type Built = GeneralizedAdd<T::Built, U::Built>;
+    fn try_build_on_device(&self, device: &D) -> Result<Self::Built, <D>::Err> {
+        let t = self.0.try_build_on_device(device)?;
+        let u = self.1.try_build_on_device(device)?;
+        Ok(GeneralizedAdd(t, u))
+    }
+}
 
 impl<X: Clone, T: Module<X>, U: Module<X, Error = T::Error>> Module<X> for GeneralizedAdd<T, U>
 where
