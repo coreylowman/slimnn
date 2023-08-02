@@ -10,7 +10,7 @@ use crate::Module;
 #[derive(
     Default, Clone, Debug, BuildOnDevice, ResetParams, ZeroGrads, UpdateParams, ToDevice, ToDtype,
 )]
-pub struct GeneralizedAdd<T, U>(pub T, pub U);
+pub struct GeneralizedAdd<T, U>(#[module] pub T, #[module] pub U);
 
 impl<E: Dtype, D: Device<E>, T: BuildOnDevice<E, D>, U: BuildOnDevice<E, D>> BuildOnDevice<E, D>
     for GeneralizedAdd<T, U>

@@ -18,7 +18,9 @@ impl<M: Dim, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for LayerNorm1D<
 
 #[derive(Clone, Debug, UpdateParams, ZeroGrads, ToDtype, ToDevice)]
 pub struct DeviceLayerNorm1D<M: Dim, Elem: Dtype, Dev: Device<Elem>> {
+    #[param]
     pub gamma: Tensor<(M,), Elem, Dev>,
+    #[param]
     pub beta: Tensor<(M,), Elem, Dev>,
     pub epsilon: f64,
 }

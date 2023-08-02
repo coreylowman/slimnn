@@ -66,6 +66,7 @@ where
     Elem: Dtype,
     Dev: Device<Elem>,
 {
+    #[param]
     pub weight: Tensor<
         (
             OutChan,

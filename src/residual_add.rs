@@ -8,8 +8,9 @@ use dfdx::{
 use crate::Module;
 
 #[derive(Default, Clone, Debug, ResetParams, ZeroGrads, UpdateParams, ToDtype, ToDevice)]
-pub struct ResidualAdd<T>(pub T);
+pub struct ResidualAdd<T>(#[module] pub T);
 
+// TODO derive this
 impl<E: Dtype, D: Device<E>, T: BuildOnDevice<E, D>> BuildOnDevice<E, D> for ResidualAdd<T> {
     type Built = ResidualAdd<T::Built>;
     fn try_build_on_device(&self, device: &D) -> Result<Self::Built, <D>::Err> {

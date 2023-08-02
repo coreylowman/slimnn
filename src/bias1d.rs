@@ -21,6 +21,7 @@ impl<I: Dim, E: Dtype, D: Device<E>> BuildOnDevice<E, D> for Bias1D<I> {
 
 #[derive(Clone, Debug, UpdateParams, ZeroGrads, ToDtype, ToDevice)]
 pub struct DeviceBias1D<I: Dim, Elem: Dtype, Dev: Device<Elem>> {
+    #[param]
     pub bias: Tensor<(I,), Elem, Dev>,
 }
 

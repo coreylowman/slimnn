@@ -7,6 +7,7 @@ use dfdx::{
 #[derive(Default, Debug, Clone, Copy, ResetParams, ZeroGrads, UpdateParams, ToDevice, ToDtype)]
 pub struct AvgPoolGlobal;
 
+// TODO derive this
 impl<E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for AvgPoolGlobal {
     type Built = Self;
     fn try_build_on_device(&self, _: &D) -> Result<Self::Built, <D>::Err> {

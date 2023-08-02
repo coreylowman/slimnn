@@ -21,9 +21,13 @@ impl<C: Dim, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for BatchNorm2D<
 
 #[derive(Clone, Debug, ToDtype, ToDevice)]
 pub struct DeviceBatchNorm2D<C: Dim, E: Dtype, D: Device<E>> {
+    #[param]
     pub scale: Tensor<(C,), E, D>,
+    #[param]
     pub bias: Tensor<(C,), E, D>,
+    #[param]
     pub running_mean: Tensor<(C,), E, D>,
+    #[param]
     pub running_var: Tensor<(C,), E, D>,
     pub epsilon: f64,
     pub momentum: f64,
@@ -58,7 +62,8 @@ impl<C: Dim, E: Dtype, D: Device<E>> crate::ZeroGrads<E, D> for DeviceBatchNorm2
             .try_fill_with_zeros(grads.get_or_alloc_mut(&self.scale)?)?;
         self.bias
             .device()
-            .try_fill_with_zeros(grads.get_or_alloc_mut(&self.bias)?)
+            .try_fill_with_zeros(grads.get_or_alloc_mut(&self.bias)?)?;
+        Ok(())
     }
 }
 
