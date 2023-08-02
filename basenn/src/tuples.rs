@@ -18,6 +18,24 @@ macro_rules! tuple_impls {
             }
         }
 
+        impl<Dev: Device<Elem>, Elem: Dtype, $($name: crate::UpdateParams<Elem, Dev>),+> crate::UpdateParams<Elem, Dev> for ($($name,)+) {
+            fn try_update_params<Optim: crate::Optimizer<Elem, Dev>>(
+                &mut self,
+                optimizer: &mut Optim,
+                gradients: &dfdx::prelude::Gradients<Elem, Dev>,
+            ) -> Result<(), Dev::Err> {
+                $(self.$idx.try_update_params(optimizer, gradients)?;)+
+                Ok(())
+            }
+        }
+
+        impl<Dev: Device<Elem>, Elem: Dtype, $($name: crate::ZeroGrads<Elem, Dev>),+> crate::ZeroGrads<Elem, Dev> for ($($name,)+) {
+            fn try_zero_grads(&self, grads: &mut dfdx::prelude::Gradients<Elem, Dev>) -> Result<(), Dev::Err> {
+                $(self.$idx.try_zero_grads(grads)?;)+
+                Ok(())
+            }
+        }
+
         /*This macro expands like this for a 4-tuple:
 
         impl<
