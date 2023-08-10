@@ -5,6 +5,8 @@ use dfdx::prelude::*;
 #[repr(transparent)]
 pub struct LayerNorm1D<M: Dim>(pub M);
 
+pub type ConstLayerNorm1D<const M: usize> = LayerNorm1D<Const<M>>;
+
 impl<M: Dim, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for LayerNorm1D<M> {
     type Built = DeviceLayerNorm1D<M, E, D>;
     fn try_build_on_device(&self, device: &D) -> Result<Self::Built, D::Err> {
@@ -16,7 +18,7 @@ impl<M: Dim, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for LayerNorm1D<
     }
 }
 
-#[derive(Clone, Debug, UpdateParams, ZeroGrads, ToDtype, ToDevice)]
+#[derive(Clone, Debug, UpdateParams, ZeroGrads)]
 pub struct DeviceLayerNorm1D<M: Dim, Elem: Dtype, Dev: Device<Elem>> {
     #[param]
     pub gamma: Tensor<(M,), Elem, Dev>,

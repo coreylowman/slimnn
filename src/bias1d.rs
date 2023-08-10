@@ -3,12 +3,15 @@ use basenn::*;
 use derives::*;
 use dfdx::{
     prelude::{Device, Dim, Dtype, Tape, Tensor},
+    shapes::Const,
     tensor_ops::{BroadcastTo, TryAdd},
 };
 
 #[derive(Default, Clone, Copy, Debug)]
 #[repr(transparent)]
 pub struct Bias1D<I: Dim>(pub I);
+
+pub type ConstBias1D<const I: usize> = Bias1D<Const<I>>;
 
 impl<I: Dim, E: Dtype, D: Device<E>> BuildOnDevice<E, D> for Bias1D<I> {
     type Built = DeviceBias1D<I, E, D>;
@@ -19,7 +22,7 @@ impl<I: Dim, E: Dtype, D: Device<E>> BuildOnDevice<E, D> for Bias1D<I> {
     }
 }
 
-#[derive(Clone, Debug, UpdateParams, ZeroGrads, ToDtype, ToDevice)]
+#[derive(Clone, Debug, UpdateParams, ZeroGrads)]
 pub struct DeviceBias1D<I: Dim, Elem: Dtype, Dev: Device<Elem>> {
     #[param]
     pub bias: Tensor<(I,), Elem, Dev>,

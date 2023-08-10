@@ -1,43 +1,34 @@
 #![feature(generic_const_exprs)]
 
-use dfdx::shapes::Const;
 use slimnn::{
-    avg_pool_global::AvgPoolGlobal, batch_norm2d::BatchNorm2D, conv2d::Conv2D,
-    generalized_add::GeneralizedAdd, linear::Linear, max_pool_2d::MaxPool2D, relu::ReLU,
+    avg_pool_global::AvgPoolGlobal, batch_norm2d::ConstBatchNorm2D, conv2d::ConstConv2D,
+    generalized_add::GeneralizedAdd, linear::ConstLinear, max_pool_2d::ConstMaxPool2D, relu::ReLU,
     residual_add::ResidualAdd, *,
 };
 
 fn main() {
-    type ConstConv2D<
-        const C: usize,
-        const D: usize,
-        const K: usize,
-        const S: usize,
-        const P: usize,
-    > = Conv2D<Const<C>, Const<D>, Const<K>, Const<S>, Const<P>>;
-
     #[derive(Default, Clone, Sequential)]
     pub struct BasicBlockInternal<const C: usize> {
         conv1: ConstConv2D<C, C, 3, 1, 1>,
-        bn1: BatchNorm2D<Const<C>>,
+        bn1: ConstBatchNorm2D<C>,
         relu: ReLU,
         conv2: ConstConv2D<C, C, 3, 1, 1>,
-        bn2: BatchNorm2D<Const<C>>,
+        bn2: ConstBatchNorm2D<C>,
     }
 
     #[derive(Default, Clone, Sequential)]
     pub struct DownsampleA<const C: usize, const D: usize> {
         conv1: ConstConv2D<C, D, 3, 2, 1>,
-        bn1: BatchNorm2D<Const<D>>,
+        bn1: ConstBatchNorm2D<D>,
         relu: ReLU,
         conv2: ConstConv2D<D, D, 3, 1, 1>,
-        bn2: BatchNorm2D<Const<D>>,
+        bn2: ConstBatchNorm2D<D>,
     }
 
     #[derive(Default, Clone, Sequential)]
     pub struct DownsampleB<const C: usize, const D: usize> {
         conv1: ConstConv2D<C, D, 1, 2, 0>,
-        bn1: BatchNorm2D<Const<D>>,
+        bn1: ConstBatchNorm2D<D>,
     }
 
     pub type BasicBlock<const C: usize> = ResidualAdd<BasicBlockInternal<C>>;
@@ -48,9 +39,9 @@ fn main() {
     #[derive(Default, Clone, Sequential)]
     pub struct Head {
         conv: ConstConv2D<3, 64, 7, 2, 3>,
-        bn: BatchNorm2D<Const<64>>,
+        bn: ConstBatchNorm2D<64>,
         relu: ReLU,
-        pool: MaxPool2D<Const<3>, Const<2>, Const<1>>,
+        pool: ConstMaxPool2D<3, 2, 1>,
     }
 
     #[derive(Default, Clone, Sequential)]
@@ -60,7 +51,7 @@ fn main() {
         l2: (Downsample<64, 128>, ReLU, BasicBlock<128>, ReLU),
         l3: (Downsample<128, 256>, ReLU, BasicBlock<256>, ReLU),
         l4: (Downsample<256, 512>, ReLU, BasicBlock<512>, ReLU),
-        l5: (AvgPoolGlobal, Linear<Const<512>, Const<NUM_CLASSES>>),
+        l5: (AvgPoolGlobal, ConstLinear<512, NUM_CLASSES>),
     }
 
     {

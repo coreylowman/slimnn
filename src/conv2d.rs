@@ -24,6 +24,24 @@ pub struct Conv2D<
     pub groups: Groups,
 }
 
+pub type ConstConv2D<
+    const IN_CHAN: usize,
+    const OUT_CHAN: usize,
+    const KERNEL_SIZE: usize,
+    const STRIDE: usize = 1,
+    const PADDING: usize = 0,
+    const DILATION: usize = 1,
+    const GROUPS: usize = 1,
+> = Conv2D<
+    Const<IN_CHAN>,
+    Const<OUT_CHAN>,
+    Const<KERNEL_SIZE>,
+    Const<STRIDE>,
+    Const<PADDING>,
+    Const<DILATION>,
+    Const<GROUPS>,
+>;
+
 impl<I: Dim, O: Dim, K: Dim, S: Dim, P: Dim, L: Dim, G: Dim, E: Dtype, D: Device<E>>
     crate::BuildOnDevice<E, D> for Conv2D<I, O, K, S, P, L, G>
 where
@@ -51,7 +69,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, UpdateParams, ToDtype, ToDevice)]
+#[derive(Debug, Clone, UpdateParams)]
 pub struct DeviceConv2D<InChan, OutChan, KernelSize, Stride, Padding, Dilation, Groups, Elem, Dev>
 where
     InChan: std::ops::Div<Groups>,

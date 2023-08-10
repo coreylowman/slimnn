@@ -4,7 +4,7 @@ use dfdx::{
     tensor_ops::MeanTo,
 };
 
-#[derive(Default, Debug, Clone, Copy, ResetParams, ZeroGrads, UpdateParams, ToDevice, ToDtype)]
+#[derive(Default, Debug, Clone, Copy, ResetParams, ZeroGrads, UpdateParams)]
 pub struct AvgPoolGlobal;
 
 // TODO derive this

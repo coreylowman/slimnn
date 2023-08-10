@@ -3,6 +3,7 @@ use basenn::*;
 use derives::*;
 use dfdx::{
     prelude::{Device, Dim, Dtype, HasErr, HasShape, Shape, Tape, Tensor},
+    shapes::Const,
     tensor_ops::TryMatMul,
 };
 use rand_distr::Uniform;
@@ -13,6 +14,8 @@ pub struct MatMul<I: Dim, O: Dim> {
     pub out: O,
 }
 
+pub type ConstMatMul<const I: usize, const O: usize> = MatMul<Const<I>, Const<O>>;
+
 impl<I: Dim, O: Dim, E: Dtype, D: Device<E>> BuildOnDevice<E, D> for MatMul<I, O> {
     type Built = DeviceMatMul<I, O, E, D>;
     fn try_build_on_device(&self, device: &D) -> Result<Self::Built, D::Err> {
@@ -22,7 +25,7 @@ impl<I: Dim, O: Dim, E: Dtype, D: Device<E>> BuildOnDevice<E, D> for MatMul<I, O
     }
 }
 
-#[derive(Clone, Debug, UpdateParams, ZeroGrads, ToDtype, ToDevice)]
+#[derive(Clone, Debug, UpdateParams, ZeroGrads)]
 pub struct DeviceMatMul<I: Dim, O: Dim, Elem: Dtype, Dev: Device<Elem>> {
     #[param]
     pub weight: Tensor<(I, O), Elem, Dev>,

@@ -1,6 +1,7 @@
 mod tuples;
+mod vecs;
 
-use dfdx::prelude::{Device, Dtype, Gradients, Shape, Tensor};
+use dfdx::prelude::{Device, Dtype, Gradients, Shape, Tensor, UniqueId};
 
 pub trait Module<X> {
     type Output;
@@ -21,16 +22,57 @@ pub trait Module<X> {
     }
 }
 
-pub trait Optimizer<E: Dtype, D: Device<E>> {
+/// An error indicating that a parameter was not used in gradient
+/// computation, and was therefore not present in [Gradients]
+/// during an update.
+#[derive(Debug)]
+pub enum OptimizerUpdateError<Err> {
+    UnusedTensors(Vec<UniqueId>),
+    DeviceError(Err),
+}
+
+impl<Err: std::fmt::Display> std::fmt::Display for OptimizerUpdateError<Err> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UnusedTensors(unused) => write!(f, "Unused tensors: {unused:?}"),
+            Self::DeviceError(err) => write!(f, "{err}"),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl<Err: std::fmt::Debug + std::fmt::Display> std::error::Error for OptimizerUpdateError<Err> {}
+
+pub trait Optimizer<M, E: Dtype, D: Device<E>>: Sized {
     fn update_tensor<S: Shape>(
         &mut self,
         t: &mut Tensor<S, E, D>,
         gradients: &Gradients<E, D>,
+        missing_tensors: &mut Vec<UniqueId>,
     ) -> Result<(), D::Err>;
+
+    fn update(
+        &mut self,
+        module: &mut M,
+        gradients: &Gradients<E, D>,
+    ) -> Result<(), OptimizerUpdateError<D::Err>>
+    where
+        M: UpdateParams<E, D>,
+    {
+        let mut missing_tensors = Vec::new();
+        module
+            .try_update_params(self, gradients, &mut missing_tensors)
+            .map_err(OptimizerUpdateError::DeviceError)?;
+        if missing_tensors.is_empty() {
+            Ok(())
+        } else {
+            Err(OptimizerUpdateError::UnusedTensors(missing_tensors))
+        }
+    }
 }
 
 pub trait BuildOnDevice<E: Dtype, D: Device<E>>: Clone {
-    type Built: Clone;
+    type Built: Clone + std::fmt::Debug;
     fn build_on_device(&self, device: &D) -> Self::Built {
         self.try_build_on_device(device).unwrap()
     }
@@ -45,17 +87,20 @@ pub trait ResetParams<E: Dtype, D: Device<E>> {
 }
 
 pub trait UpdateParams<E: Dtype, D: Device<E>> {
-    fn update_params<Optim: Optimizer<E, D>>(
+    fn update_params<M, Optim: Optimizer<M, E, D>>(
         &mut self,
         optimizer: &mut Optim,
         gradients: &Gradients<E, D>,
+        missing_tensors: &mut Vec<UniqueId>,
     ) {
-        self.try_update_params(optimizer, gradients).unwrap()
+        self.try_update_params(optimizer, gradients, missing_tensors)
+            .unwrap()
     }
-    fn try_update_params<Optim: Optimizer<E, D>>(
+    fn try_update_params<M, Optim: Optimizer<M, E, D>>(
         &mut self,
         optimizer: &mut Optim,
         gradients: &Gradients<E, D>,
+        missing_tensors: &mut Vec<UniqueId>,
     ) -> Result<(), D::Err>;
 }
 
@@ -87,14 +132,4 @@ pub trait ZeroGrads<E: Dtype, D: Device<E>> {
         self.try_zero_grads(&mut grads)?;
         Ok(grads)
     }
-}
-
-pub trait ToDtype<E> {
-    type AsDtype;
-    fn to_dtype(&self, _unused: &E) -> Self::AsDtype;
-}
-
-pub trait ToDevice<D> {
-    type OnDevice;
-    fn to_device(self, device: &D) -> Self::OnDevice;
 }

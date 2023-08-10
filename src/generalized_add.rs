@@ -7,9 +7,7 @@ use dfdx::{
 
 use crate::Module;
 
-#[derive(
-    Default, Clone, Debug, BuildOnDevice, ResetParams, ZeroGrads, UpdateParams, ToDevice, ToDtype,
-)]
+#[derive(Default, Clone, Debug, BuildOnDevice, ResetParams, ZeroGrads, UpdateParams)]
 pub struct GeneralizedAdd<T, U>(#[module] pub T, #[module] pub U);
 
 impl<E: Dtype, D: Device<E>, T: BuildOnDevice<E, D>, U: BuildOnDevice<E, D>> BuildOnDevice<E, D>
@@ -27,7 +25,7 @@ impl<X: Clone, T: Module<X>, U: Module<X, Error = T::Error>> Module<X> for Gener
 where
     T::Output: TryAdd<U::Output, Err = T::Error>,
 {
-    type Output = T::Output;
+    type Output = <T::Output as TryAdd<U::Output>>::Output;
     type Error = T::Error;
     fn try_forward(&self, x: X) -> Result<Self::Output, Self::Error> {
         let t = self.0.try_forward(x.clone())?;

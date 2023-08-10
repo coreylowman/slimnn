@@ -1,4 +1,4 @@
-use dfdx::{dtypes::Dtype, tensor_ops::Device};
+use dfdx::{dtypes::Dtype, tensor::UniqueId, tensor_ops::Device};
 
 macro_rules! tuple_impls {
     ([$($name:ident),+] [$($idx:tt),+], $last:ident, [$($rev_tail:ident),*]) => {
@@ -19,12 +19,13 @@ macro_rules! tuple_impls {
         }
 
         impl<Dev: Device<Elem>, Elem: Dtype, $($name: crate::UpdateParams<Elem, Dev>),+> crate::UpdateParams<Elem, Dev> for ($($name,)+) {
-            fn try_update_params<Optim: crate::Optimizer<Elem, Dev>>(
+            fn try_update_params<M, Optim: crate::Optimizer<M, Elem, Dev>>(
                 &mut self,
                 optimizer: &mut Optim,
                 gradients: &dfdx::prelude::Gradients<Elem, Dev>,
+                missing_tensors: &mut Vec<UniqueId>,
             ) -> Result<(), Dev::Err> {
-                $(self.$idx.try_update_params(optimizer, gradients)?;)+
+                $(self.$idx.try_update_params(optimizer, gradients, missing_tensors)?;)+
                 Ok(())
             }
         }

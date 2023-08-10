@@ -1,9 +1,10 @@
-use derives::*;
 use dfdx::prelude::*;
 
 #[derive(Default, Clone, Copy, Debug)]
 #[repr(transparent)]
 pub struct BatchNorm2D<C: Dim>(pub C);
+
+pub type ConstBatchNorm2D<const C: usize> = BatchNorm2D<Const<C>>;
 
 impl<C: Dim, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for BatchNorm2D<C> {
     type Built = DeviceBatchNorm2D<C, E, D>;
@@ -19,15 +20,11 @@ impl<C: Dim, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for BatchNorm2D<
     }
 }
 
-#[derive(Clone, Debug, ToDtype, ToDevice)]
+#[derive(Clone, Debug)]
 pub struct DeviceBatchNorm2D<C: Dim, E: Dtype, D: Device<E>> {
-    #[param]
     pub scale: Tensor<(C,), E, D>,
-    #[param]
     pub bias: Tensor<(C,), E, D>,
-    #[param]
     pub running_mean: Tensor<(C,), E, D>,
-    #[param]
     pub running_var: Tensor<(C,), E, D>,
     pub epsilon: f64,
     pub momentum: f64,
@@ -44,13 +41,14 @@ impl<C: Dim, E: Dtype, D: Device<E>> crate::ResetParams<E, D> for DeviceBatchNor
 
 // NOTE: can't derive because we don't want to update running_mean/running_var
 impl<C: Dim, E: Dtype, D: Device<E>> crate::UpdateParams<E, D> for DeviceBatchNorm2D<C, E, D> {
-    fn try_update_params<Optim: crate::Optimizer<E, D>>(
+    fn try_update_params<M, Optim: crate::Optimizer<M, E, D>>(
         &mut self,
         optimizer: &mut Optim,
         gradients: &Gradients<E, D>,
-    ) -> Result<(), <D>::Err> {
-        optimizer.update_tensor(&mut self.scale, gradients)?;
-        optimizer.update_tensor(&mut self.bias, gradients)
+        missing_tensors: &mut Vec<UniqueId>,
+    ) -> Result<(), D::Err> {
+        optimizer.update_tensor(&mut self.scale, gradients, missing_tensors)?;
+        optimizer.update_tensor(&mut self.bias, gradients, missing_tensors)
     }
 }
 

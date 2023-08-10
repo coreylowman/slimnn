@@ -4,7 +4,7 @@ use dfdx::{
     tensor_ops::{Device, TryPool2D},
 };
 
-#[derive(Debug, Default, Clone, UpdateParams, ResetParams, ZeroGrads, ToDtype, ToDevice)]
+#[derive(Debug, Default, Clone, UpdateParams, ResetParams, ZeroGrads)]
 pub struct MaxPool2D<
     KernelSize: Dim,
     Stride: Dim = Const<1>,
@@ -16,6 +16,13 @@ pub struct MaxPool2D<
     pub padding: Padding,
     pub dilation: Dilation,
 }
+
+pub type ConstMaxPool2D<
+    const KERNEL_SIZE: usize,
+    const STRIDE: usize = 1,
+    const PADDING: usize = 0,
+    const DILATION: usize = 1,
+> = MaxPool2D<Const<KERNEL_SIZE>, Const<STRIDE>, Const<PADDING>, Const<DILATION>>;
 
 impl<K: Dim, S: Dim, P: Dim, L: Dim, Elem: Dtype, Dev: Device<Elem>> crate::BuildOnDevice<Elem, Dev>
     for MaxPool2D<K, S, P, L>

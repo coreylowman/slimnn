@@ -49,10 +49,11 @@ pub fn functional(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
 
         impl #built_impl basenn::UpdateParams<Elem, Dev> for #name #builder_ty #built_where {
-            fn try_update_params<Optim: basenn::Optimizer<Elem, Dev>>(
+            fn try_update_params<Model, Optim: basenn::Optimizer<Model, Elem, Dev>>(
                 &mut self,
                 optimizer: &mut Optim,
                 gradients: &dfdx::prelude::Gradients<Elem, Dev>,
+                missing_tensors: &mut Vec<dfdx::tensor::UniqueId>,
             ) -> Result<(), Dev::Err> {
                 Ok(())
             }
@@ -73,18 +74,8 @@ pub fn build_on_device(_: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::new()
 }
 
-#[proc_macro_derive(ToDtype, attributes(param, module))]
-pub fn to_dtype(_: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    proc_macro::TokenStream::new()
-}
-
-#[proc_macro_derive(ToDevice, attributes(param, module))]
-pub fn to_device(_: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    proc_macro::TokenStream::new()
-}
-
-#[proc_macro_derive(Sequential)]
-pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+#[proc_macro_derive(CustomModule, attributes(module))]
+pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
     let builder_name = input.ident.clone();
@@ -94,7 +85,7 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .iter()
         .find(|attr| attr.path().is_ident("built"))
         .map(|attr| attr.parse_args::<syn::Ident>().unwrap())
-        .unwrap_or_else(|| syn::Ident::new(&format!("{}OnDevice", builder_name), input.span()));
+        .unwrap_or_else(|| syn::Ident::new(&format!("Device{}", builder_name), input.span()));
     let mut built_generics = input.generics.clone();
     built_generics
         .params
@@ -146,7 +137,128 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let (built_impl, _, built_where) = built_generics.split_for_impl();
 
         quote! {
-            #[derive(Clone, derives::ResetParams, derives::UpdateParams, derives::ZeroGrads, derives::ToDevice, derives::ToDtype)]
+            #[derive(Clone, Debug, derives::ResetParams, derives::UpdateParams, derives::ZeroGrads)]
+            pub struct #built_name #built_impl #built_where {
+                #fields
+            }
+        }
+    };
+
+    let impl_build_on_device = {
+        let (_, builder_ty, _) = input.generics.split_for_impl();
+        let (built_impl, built_ty, built_where) = built_generics.split_for_impl();
+
+        match input.data {
+            Data::Struct(ref data) => match data.fields {
+                Fields::Named(ref fields) => {
+                    let recurse = fields.named.iter().map(|f| {
+                        let name = &f.ident;
+                        quote_spanned! {f.span()=> #name: self.#name.try_build_on_device(device)?, }
+                    });
+                    quote! {
+                        impl #built_impl basenn::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
+                            type Built = #built_name #built_ty;
+                            fn try_build_on_device(&self, device: &Dev) -> Result<Self::Built, Dev::Err> {
+                                let built = #built_name {
+                                    #(#recurse)*
+                                };
+                                Ok(built)
+                            }
+                        }
+                    }
+                }
+                Fields::Unnamed(ref fields) => {
+                    let recurse = fields.unnamed.iter().enumerate().map(|(i, f)| {
+                        let index = Index::from(i);
+                        quote_spanned! {f.span()=> self.#index.try_build_on_device(device)?, }
+                    });
+                    quote! {
+                        impl #built_impl basenn::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
+                            type Built = #built_name #built_ty;
+                            fn try_build_on_device(&self, device: &Dev) -> Result<Self::Built, Dev::Err> {
+                                #built_name(
+                                    #(#recurse)*
+                                )
+                            }
+                        }
+                    }
+                }
+                Fields::Unit => proc_macro2::TokenStream::new(),
+            },
+            _ => unreachable!(),
+        }
+    };
+
+    proc_macro::TokenStream::from(quote! {
+        #struct_def
+        #impl_build_on_device
+    })
+}
+
+#[proc_macro_derive(Sequential)]
+pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    let builder_name = input.ident.clone();
+
+    let built_name = input
+        .attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("built"))
+        .map(|attr| attr.parse_args::<syn::Ident>().unwrap())
+        .unwrap_or_else(|| syn::Ident::new(&format!("Device{}", builder_name), input.span()));
+    let mut built_generics = input.generics.clone();
+    built_generics
+        .params
+        .push(parse_quote!(Elem: dfdx::prelude::Dtype));
+    built_generics
+        .params
+        .push(parse_quote!(Dev: dfdx::prelude::Device<Elem>));
+
+    // get the generics for the impl. `Input` must be added only to the impl_generics.
+    // NOTE: without cloning, `Input` will appear in both impl & ty generics.
+    let mut module_generics = built_generics.clone();
+    module_generics.params.push(parse_quote!(Input));
+
+    let struct_def = {
+        let where_clause = built_generics.make_where_clause();
+        let fields = {
+            match &input.data {
+                Data::Struct(ref obj) => match obj.fields {
+                    Fields::Named(ref fields) => {
+                        let fields = fields.named.iter().map(|f| {
+                            let name = &f.ident;
+                            let ty = &f.ty;
+                            let vis = &f.vis;
+                            where_clause
+                                .predicates
+                                .push(parse_quote!(#ty: basenn::BuildOnDevice<Elem, Dev>));
+                            quote_spanned!(f.span()=> #[module] #vis #name: <#ty as basenn::BuildOnDevice<Elem, Dev>>::Built,)
+                        });
+                        quote! { #(#fields)* }
+                    }
+                    Fields::Unnamed(ref fields) => {
+                        let fields = fields.unnamed.iter().map(|f| {
+                            let ty = &f.ty;
+                            let vis = &f.vis;
+                            where_clause
+                                .predicates
+                                .push(parse_quote!(#ty: basenn::BuildOnDevice<Elem, Dev>));
+                            quote_spanned!(f.span()=> #[module] #vis <#ty as basenn::BuildOnDevice<Elem, Dev>>::Built,)
+                        });
+                        quote! { #(#fields)* }
+                    }
+                    Fields::Unit => Default::default(),
+                },
+                Data::Enum(_) => unimplemented!("Sequential cannot be derived for enums."),
+                Data::Union(_) => unimplemented!("Sequential cannot be derived for unions."),
+            }
+        };
+
+        let (built_impl, _, built_where) = built_generics.split_for_impl();
+
+        quote! {
+            #[derive(Clone, Debug, derives::ResetParams, derives::UpdateParams, derives::ZeroGrads)]
             pub struct #built_name #built_impl #built_where {
                 #fields
             }
@@ -429,9 +541,9 @@ pub fn update_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                         where_clause
                             .predicates
                             .push(parse_quote!(#ty: basenn::UpdateParams<Elem, Dev>));
-                        quote_spanned!(f.span()=>self.#name.try_update_params(optimizer, gradients)?;)
+                        quote_spanned!(f.span()=>self.#name.try_update_params(optimizer, gradients, missing_tensors)?;)
                     } else if f.attrs.iter().find(|attr| attr.path().is_ident("param")).is_some() {
-                        quote_spanned!(f.span()=>optimizer.update_tensor(&mut self.#name, gradients)?;)
+                        quote_spanned!(f.span()=>optimizer.update_tensor(&mut self.#name, gradients, missing_tensors)?;)
                     } else {
                         Default::default()
                     }
@@ -450,9 +562,9 @@ pub fn update_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                         where_clause
                             .predicates
                             .push(parse_quote!(#ty: basenn::UpdateParams<Elem, Dev>));
-                        quote_spanned!(f.span()=>self.#index.try_update_params(optimizer, gradients)?;)
+                        quote_spanned!(f.span()=>self.#index.try_update_params(optimizer, gradients, missing_tensors)?;)
                     } else if f.attrs.iter().find(|attr| attr.path().is_ident("param")).is_some() {
-                        quote_spanned!(f.span()=>optimizer.update_tensor(&mut self.#index, gradients)?;)
+                        quote_spanned!(f.span()=>optimizer.update_tensor(&mut self.#index, gradients, missing_tensors)?;)
                     } else {
                         Default::default()
                     }
@@ -470,10 +582,11 @@ pub fn update_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
     proc_macro::TokenStream::from(quote! {
         impl #impl_generics basenn::UpdateParams<Elem, Dev> for #struct_name #ty_generics #where_clause {
-            fn try_update_params<Optim: basenn::Optimizer<Elem, Dev>>(
+            fn try_update_params<Model, Optim: basenn::Optimizer<Model, Elem, Dev>>(
                 &mut self,
                 optimizer: &mut Optim,
                 gradients: &dfdx::tensor::Gradients<Elem, Dev>,
+                missing_tensors: &mut Vec<dfdx::tensor::UniqueId>,
             ) -> Result<(), Dev::Err> {
                 #updates
                 Ok(())

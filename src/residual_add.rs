@@ -7,7 +7,7 @@ use dfdx::{
 
 use crate::Module;
 
-#[derive(Default, Clone, Debug, ResetParams, ZeroGrads, UpdateParams, ToDtype, ToDevice)]
+#[derive(Default, Clone, Debug, ResetParams, ZeroGrads, UpdateParams)]
 pub struct ResidualAdd<T>(#[module] pub T);
 
 // TODO derive this
@@ -23,7 +23,7 @@ impl<X: Clone, T: Module<X>> Module<X> for ResidualAdd<T>
 where
     X: TryAdd<T::Output, Err = T::Error>,
 {
-    type Output = X;
+    type Output = X::Output;
     type Error = T::Error;
     fn try_forward(&self, x: X) -> Result<Self::Output, Self::Error> {
         let y = self.0.try_forward(x.clone())?;
