@@ -9,11 +9,11 @@ pub mod layer_norm1d;
 pub mod linear;
 pub mod matmul;
 pub mod max_pool_2d;
-// pub mod multi_head_attention;
+pub mod multi_head_attention;
 pub mod relu;
 pub mod residual_add;
 pub mod sgd;
-// pub mod transformer;
+pub mod transformer;
 
 pub use basenn::*;
 pub use derives::*;

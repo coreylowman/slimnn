@@ -49,7 +49,7 @@ pub fn functional(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
 
         impl #built_impl basenn::UpdateParams<Elem, Dev> for #name #builder_ty #built_where {
-            fn try_update_params<Model, Optim: basenn::Optimizer<Model, Elem, Dev>>(
+            fn try_update_params<_Model, Optim: basenn::Optimizer<_Model, Elem, Dev>>(
                 &mut self,
                 optimizer: &mut Optim,
                 gradients: &dfdx::prelude::Gradients<Elem, Dev>,
@@ -109,23 +109,39 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                             let name = &f.ident;
                             let ty = &f.ty;
                             let vis = &f.vis;
-                            where_clause
-                                .predicates
-                                .push(parse_quote!(#ty: basenn::BuildOnDevice<Elem, Dev>));
-                            quote_spanned!(f.span()=> #[module] #vis #name: <#ty as basenn::BuildOnDevice<Elem, Dev>>::Built,)
+                            if f.attrs
+                                .iter()
+                                .find(|attr| attr.path().is_ident("module"))
+                                .is_some()
+                            {
+                                where_clause
+                                    .predicates
+                                    .push(parse_quote!(#ty: basenn::BuildOnDevice<Elem, Dev>));
+                                quote_spanned!(f.span()=> #[module] #vis #name: <#ty as basenn::BuildOnDevice<Elem, Dev>>::Built,)
+                            } else {
+                                quote_spanned!(f.span()=> #vis #name: #ty,)
+                            }
                         });
-                        quote! { #(#fields)* }
+                        quote! { {#(#fields)*} }
                     }
                     Fields::Unnamed(ref fields) => {
                         let fields = fields.unnamed.iter().map(|f| {
                             let ty = &f.ty;
                             let vis = &f.vis;
-                            where_clause
-                                .predicates
-                                .push(parse_quote!(#ty: basenn::BuildOnDevice<Elem, Dev>));
-                            quote_spanned!(f.span()=> #[module] #vis <#ty as basenn::BuildOnDevice<Elem, Dev>>::Built,)
+                            if f.attrs
+                                .iter()
+                                .find(|attr| attr.path().is_ident("module"))
+                                .is_some()
+                            {
+                                where_clause
+                                    .predicates
+                                    .push(parse_quote!(#ty: basenn::BuildOnDevice<Elem, Dev>));
+                                quote_spanned!(f.span()=> #[module] #vis <#ty as basenn::BuildOnDevice<Elem, Dev>>::Built,)
+                            } else {
+                                quote_spanned!(f.span()=> #vis #ty,)
+                            }
                         });
-                        quote! { #(#fields)* }
+                        quote! { (#(#fields)*) }
                     }
                     Fields::Unit => Default::default(),
                 },
@@ -138,9 +154,7 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
         quote! {
             #[derive(Clone, Debug, derives::ResetParams, derives::UpdateParams, derives::ZeroGrads)]
-            pub struct #built_name #built_impl #built_where {
-                #fields
-            }
+            pub struct #built_name #built_impl #built_where #fields
         }
     };
 
@@ -153,7 +167,15 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                 Fields::Named(ref fields) => {
                     let recurse = fields.named.iter().map(|f| {
                         let name = &f.ident;
-                        quote_spanned! {f.span()=> #name: self.#name.try_build_on_device(device)?, }
+                        if f.attrs
+                            .iter()
+                            .find(|attr| attr.path().is_ident("module"))
+                            .is_some()
+                        {
+                            quote_spanned! {f.span()=> #name: self.#name.try_build_on_device(device)?, }
+                        } else {
+                            quote_spanned! {f.span()=> #name: self.#name, }
+                        }
                     });
                     quote! {
                         impl #built_impl basenn::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
@@ -170,7 +192,15 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                 Fields::Unnamed(ref fields) => {
                     let recurse = fields.unnamed.iter().enumerate().map(|(i, f)| {
                         let index = Index::from(i);
-                        quote_spanned! {f.span()=> self.#index.try_build_on_device(device)?, }
+                        if f.attrs
+                            .iter()
+                            .find(|attr| attr.path().is_ident("module"))
+                            .is_some()
+                        {
+                            quote_spanned! {f.span()=> self.#index.try_build_on_device(device)?, }
+                        } else {
+                            quote_spanned! {f.span()=> self.#index, }
+                        }
                     });
                     quote! {
                         impl #built_impl basenn::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
@@ -582,7 +612,7 @@ pub fn update_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
     proc_macro::TokenStream::from(quote! {
         impl #impl_generics basenn::UpdateParams<Elem, Dev> for #struct_name #ty_generics #where_clause {
-            fn try_update_params<Model, Optim: basenn::Optimizer<Model, Elem, Dev>>(
+            fn try_update_params<_Model, Optim: basenn::Optimizer<_Model, Elem, Dev>>(
                 &mut self,
                 optimizer: &mut Optim,
                 gradients: &dfdx::tensor::Gradients<Elem, Dev>,

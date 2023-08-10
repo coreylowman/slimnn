@@ -5,25 +5,33 @@ use num_traits::Float;
 
 #[derive(Default, Debug, Copy, Clone, CustomModule)]
 pub struct MultiHeadAttention<Embed: Dim, NumHeads: Dim, K: Dim = Embed, V: Dim = Embed> {
+    #[module]
     pub w_q: Linear<Embed, K>,
+    #[module]
     pub w_k: Linear<Embed, K>,
+    #[module]
     pub w_v: Linear<Embed, V>,
+    #[module]
     pub w_o: Linear<V, Embed>,
     pub num_heads: NumHeads,
+    pub k_dim: K,
+    pub v_dim: V,
 }
 
 impl<Embed: Dim, NumHeads: Dim, K: Dim, V: Dim> MultiHeadAttention<Embed, NumHeads, K, V> {
-    pub fn new(embed: Embed, num_heads: NumHeads) -> Self {
+    pub fn new(embed: Embed, num_heads: NumHeads, k: K, v: V) -> Self {
         assert!(
-            embed.size() % num_heads.size() == 0,
+            k.size() % num_heads.size() == 0 && v.size() % num_heads.size() == 0,
             "NUM_HEADS must divide K_DIM & V_DIM evenly! If you haven't specified K_DIM & V_DIM, they default to EMBED_DIM, which means NUM_HEADS must divide EMBED_DIM evenly."
         );
         Self {
-            w_q: Linear::new(embed, embed),
-            w_k: Linear::new(embed, embed),
-            w_v: Linear::new(embed, embed),
-            w_o: Linear::new(embed, embed),
+            w_q: Linear::new(embed, k),
+            w_k: Linear::new(embed, k),
+            w_v: Linear::new(embed, v),
+            w_o: Linear::new(v, embed),
             num_heads,
+            k_dim: k,
+            v_dim: v,
         }
     }
 }
