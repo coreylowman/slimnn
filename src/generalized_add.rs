@@ -8,7 +8,7 @@ use dfdx::{
 
 use crate::Module;
 
-#[derive(Default, Clone, Debug, BuildOnDevice, ResetParams, ZeroGrads, UpdateParams)]
+#[derive(Default, Clone, Debug, ResetParams, ZeroGrads, UpdateParams)]
 pub struct GeneralizedAdd<T, U>(#[module] pub T, #[module] pub U);
 
 impl<E: Dtype, D: Device<E>, T: BuildOnDevice<E, D>, U: BuildOnDevice<E, D>> BuildOnDevice<E, D>
