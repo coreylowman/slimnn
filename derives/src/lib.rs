@@ -2,73 +2,6 @@ use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{parse_macro_input, parse_quote, Data, DeriveInput, Fields, Index};
 
-#[proc_macro_derive(Functional, attributes(calls_fn))]
-pub fn functional(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-
-    let name = input.ident;
-    let fn_name = input
-        .attrs
-        .iter()
-        .find(|attr| attr.path().is_ident("calls_fn"))
-        .map(|attr| attr.parse_args::<syn::Ident>().unwrap())
-        .expect("Need to specify #[calls_fn(<fn name>)] attribute");
-
-    let mut built_generics = input.generics.clone();
-    built_generics
-        .params
-        .push(parse_quote!(Elem: dfdx::prelude::Dtype));
-    built_generics
-        .params
-        .push(parse_quote!(Dev: dfdx::prelude::Device<Elem>));
-
-    // get the generics for the impl. `Input` must be added only to the impl_generics.
-    // NOTE: without cloning, `Input` will appear in both impl & ty generics.
-    let mut module_generics = built_generics.clone();
-    module_generics
-        .params
-        .push(parse_quote!(S: dfdx::prelude::Shape));
-    module_generics
-        .params
-        .push(parse_quote!(T: dfdx::prelude::Tape<Elem, Dev>));
-
-    let (_, builder_ty, builder_where) = input.generics.split_for_impl();
-    let (built_impl, _, built_where) = built_generics.split_for_impl();
-    let (module_impl, _, _) = module_generics.split_for_impl();
-
-    proc_macro::TokenStream::from(quote! {
-        impl #built_impl basenn::BuildOnDevice<Elem, Dev> for #name #builder_ty #built_where {
-            type Built = Self;
-            fn try_build_on_device(&self, device: &Dev) -> Result<Self::Built, Dev::Err> {
-                Ok(*self)
-            }
-        }
-
-        impl #built_impl basenn::ResetParams<Elem, Dev> for #name #builder_ty #builder_where {
-            fn try_reset_params(&mut self) -> Result<(), Dev::Err> { Ok(()) }
-        }
-
-        impl #built_impl basenn::UpdateParams<Elem, Dev> for #name #builder_ty #built_where {
-            fn try_update_params<_Model, Optim: basenn::Optimizer<_Model, Elem, Dev>>(
-                &mut self,
-                optimizer: &mut Optim,
-                gradients: &dfdx::prelude::Gradients<Elem, Dev>,
-                missing_tensors: &mut Vec<dfdx::tensor::UniqueId>,
-            ) -> Result<(), Dev::Err> {
-                Ok(())
-            }
-        }
-
-        impl #module_impl basenn::Module<dfdx::prelude::Tensor<S, Elem, Dev, T>> for #name #builder_ty #built_where {
-            type Output = dfdx::prelude::Tensor<S, Elem, Dev, T>;
-            type Error = Dev::Err;
-            fn try_forward(&self, x: dfdx::prelude::Tensor<S, Elem, Dev, T>) -> Result<Self::Output, Self::Error> {
-                #fn_name(x)
-            }
-        }
-    })
-}
-
 #[proc_macro_derive(BuildOnDevice)]
 pub fn build_on_device(_: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::new()
@@ -80,26 +13,16 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
     let builder_name = input.ident.clone();
 
-    let built_name = input
-        .attrs
-        .iter()
-        .find(|attr| attr.path().is_ident("built"))
-        .map(|attr| attr.parse_args::<syn::Ident>().unwrap())
-        .unwrap_or_else(|| syn::Ident::new(&format!("Device{}", builder_name), input.span()));
     let mut built_generics = input.generics.clone();
-    built_generics
-        .params
-        .push(parse_quote!(Elem: dfdx::prelude::Dtype));
-    built_generics
-        .params
-        .push(parse_quote!(Dev: dfdx::prelude::Device<Elem>));
+
+    let mut has_fields_to_build = false;
 
     // get the generics for the impl. `Input` must be added only to the impl_generics.
     // NOTE: without cloning, `Input` will appear in both impl & ty generics.
     let mut module_generics = built_generics.clone();
     module_generics.params.push(parse_quote!(Input));
 
-    let struct_def = {
+    let (built_name, struct_def) = {
         let where_clause = built_generics.make_where_clause();
         let fields = {
             match &input.data {
@@ -114,6 +37,7 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                                 .find(|attr| attr.path().is_ident("module"))
                                 .is_some()
                             {
+                                has_fields_to_build = true;
                                 where_clause
                                     .predicates
                                     .push(parse_quote!(#ty: basenn::BuildOnDevice<Elem, Dev>));
@@ -133,6 +57,7 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                                 .find(|attr| attr.path().is_ident("module"))
                                 .is_some()
                             {
+                                has_fields_to_build = true;
                                 where_clause
                                     .predicates
                                     .push(parse_quote!(#ty: basenn::BuildOnDevice<Elem, Dev>));
@@ -141,26 +66,98 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                                 quote_spanned!(f.span()=> #vis #ty,)
                             }
                         });
-                        quote! { (#(#fields)*) }
+                        quote! { (#(#fields)*); }
                     }
-                    Fields::Unit => Default::default(),
+                    Fields::Unit => quote! { ; },
                 },
                 Data::Enum(_) => unimplemented!("Sequential cannot be derived for enums."),
                 Data::Union(_) => unimplemented!("Sequential cannot be derived for unions."),
             }
         };
 
+        let built_name = if has_fields_to_build {
+            built_generics
+                .params
+                .push(parse_quote!(Elem: dfdx::prelude::Dtype));
+            built_generics
+                .params
+                .push(parse_quote!(Dev: dfdx::prelude::Device<Elem>));
+            input
+                .attrs
+                .iter()
+                .find(|attr| attr.path().is_ident("built"))
+                .map(|attr| attr.parse_args::<syn::Ident>().unwrap())
+                .unwrap_or_else(|| {
+                    syn::Ident::new(&format!("Device{}", builder_name), input.span())
+                })
+        } else {
+            builder_name.clone()
+        };
+
         let (built_impl, _, built_where) = built_generics.split_for_impl();
 
-        quote! {
-            #[derive(Clone, Debug, derives::ResetParams, derives::UpdateParams, derives::ZeroGrads)]
-            pub struct #built_name #built_impl #built_where #fields
-        }
+        let def = if has_fields_to_build {
+            quote! {
+                #[derive(Clone, Debug, derives::ResetParams, derives::UpdateParams, derives::ZeroGrads)]
+                pub struct #built_name #built_impl #built_where #fields
+            }
+        } else {
+            // there are no fields to build - we still have to derive ResetParams/UpdateParams/ZeroGrads, but since
+            // there aren't any fields, they will just be passthrough impls
+            let mut build_generics = built_generics.clone();
+            if !has_fields_to_build {
+                build_generics
+                    .params
+                    .push(parse_quote!(Elem: dfdx::prelude::Dtype));
+                build_generics
+                    .params
+                    .push(parse_quote!(Dev: dfdx::prelude::Device<Elem>));
+            }
+            let (build_impl, _, _) = build_generics.split_for_impl();
+            let (_, built_ty, built_where) = built_generics.split_for_impl();
+
+            quote! {
+                impl #build_impl basenn::ResetParams<Elem, Dev> for #builder_name #built_ty #built_where {
+                    fn try_reset_params(&mut self) -> Result<(), Dev::Err> {
+                        Ok(())
+                    }
+                }
+
+                impl #build_impl basenn::UpdateParams<Elem, Dev> for #builder_name #built_ty #built_where {
+                    fn try_update_params<M, Optim: basenn::Optimizer<M, Elem, Dev>>(
+                        &mut self,
+                        optimizer: &mut Optim,
+                        gradients: &dfdx::tensor::Gradients<Elem, Dev>,
+                        missing_tensors: &mut Vec<dfdx::tensor::UniqueId>,
+                    ) -> Result<(), Dev::Err> {
+                        Ok(())
+                    }
+                }
+
+                impl #build_impl basenn::ZeroGrads<Elem, Dev> for #builder_name #built_ty #built_where {
+                    fn try_zero_grads(&self, grads: &mut dfdx::tensor::Gradients<Elem, Dev>) -> Result<(), Dev::Err> {
+                        Ok(())
+                    }
+                }
+            }
+        };
+        (built_name, def)
     };
 
     let impl_build_on_device = {
         let (_, builder_ty, _) = input.generics.split_for_impl();
-        let (built_impl, built_ty, built_where) = built_generics.split_for_impl();
+
+        let mut build_generics = built_generics.clone();
+        if !has_fields_to_build {
+            build_generics
+                .params
+                .push(parse_quote!(Elem: dfdx::prelude::Dtype));
+            build_generics
+                .params
+                .push(parse_quote!(Dev: dfdx::prelude::Device<Elem>));
+        }
+        let (build_impl, _, _) = build_generics.split_for_impl();
+        let (_, built_ty, built_where) = built_generics.split_for_impl();
 
         match input.data {
             Data::Struct(ref data) => match data.fields {
@@ -178,12 +175,10 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                         }
                     });
                     quote! {
-                        impl #built_impl basenn::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
+                        impl #build_impl basenn::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
                             type Built = #built_name #built_ty;
                             fn try_build_on_device(&self, device: &Dev) -> Result<Self::Built, Dev::Err> {
-                                let built = #built_name {
-                                    #(#recurse)*
-                                };
+                                let built = #built_name { #(#recurse)* };
                                 Ok(built)
                             }
                         }
@@ -203,17 +198,25 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                         }
                     });
                     quote! {
-                        impl #built_impl basenn::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
+                        impl #build_impl basenn::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
                             type Built = #built_name #built_ty;
                             fn try_build_on_device(&self, device: &Dev) -> Result<Self::Built, Dev::Err> {
-                                #built_name(
-                                    #(#recurse)*
-                                )
+                                let built = #built_name(#(#recurse)*);
+                                Ok(built)
                             }
                         }
                     }
                 }
-                Fields::Unit => proc_macro2::TokenStream::new(),
+                Fields::Unit => {
+                    quote! {
+                        impl #build_impl basenn::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
+                            type Built = #built_name #built_ty;
+                            fn try_build_on_device(&self, device: &Dev) -> Result<Self::Built, Dev::Err> {
+                                Ok(#built_name)
+                            }
+                        }
+                    }
+                }
             },
             _ => unreachable!(),
         }

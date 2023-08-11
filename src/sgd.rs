@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use dfdx::{
     shapes::{Dtype, Shape},
     tensor::{Gradients, Storage, Tensor, Tensorlike, UniqueId},
@@ -8,21 +6,17 @@ use dfdx::{
 
 #[derive(Debug, Clone)]
 pub struct Sgd<M, E: Dtype, D: Storage<E>> {
-    /// Hyperparameter configuration
     pub cfg: SgdConfig,
-
     velocity: Gradients<E, D>,
-
-    marker: PhantomData<*const M>,
+    module: std::marker::PhantomData<*const M>,
 }
 
 impl<M, E: Dtype, D: Storage<E>> Sgd<M, E, D> {
-    /// Constructs using hyperparameters from `cfg`
     pub fn new(_model: &M, cfg: SgdConfig) -> Self {
         Self {
             cfg,
             velocity: Gradients::leaky(),
-            marker: PhantomData,
+            module: std::marker::PhantomData,
         }
     }
 }

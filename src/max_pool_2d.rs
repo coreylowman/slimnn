@@ -1,10 +1,10 @@
 use derives::*;
 use dfdx::{
-    shapes::{Const, Dim, Dtype},
-    tensor_ops::{Device, TryPool2D},
+    shapes::{Const, Dim},
+    tensor_ops::TryPool2D,
 };
 
-#[derive(Debug, Default, Clone, UpdateParams, ResetParams, ZeroGrads)]
+#[derive(Debug, Default, Clone, CustomModule)]
 pub struct MaxPool2D<
     KernelSize: Dim,
     Stride: Dim = Const<1>,
@@ -23,15 +23,6 @@ pub type ConstMaxPool2D<
     const PADDING: usize = 0,
     const DILATION: usize = 1,
 > = MaxPool2D<Const<KERNEL_SIZE>, Const<STRIDE>, Const<PADDING>, Const<DILATION>>;
-
-impl<K: Dim, S: Dim, P: Dim, L: Dim, Elem: Dtype, Dev: Device<Elem>> crate::BuildOnDevice<Elem, Dev>
-    for MaxPool2D<K, S, P, L>
-{
-    type Built = Self;
-    fn try_build_on_device(&self, _: &Dev) -> Result<Self::Built, <Dev>::Err> {
-        Ok(self.clone())
-    }
-}
 
 impl<K: Dim, S: Dim, P: Dim, L: Dim, Img: TryPool2D<K, S, P, L>> crate::Module<Img>
     for MaxPool2D<K, S, P, L>

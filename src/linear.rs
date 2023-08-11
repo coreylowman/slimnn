@@ -4,19 +4,6 @@ use derives::Sequential;
 use dfdx::shapes::{Const, Dim};
 
 #[derive(Default, Debug, Clone, Copy, Sequential)]
-pub struct LinearUnbiased<I: Dim, O: Dim> {
-    pub matmul: MatMul<I, O>,
-}
-
-impl<I: Dim, O: Dim> LinearUnbiased<I, O> {
-    pub fn new(inp: I, out: O) -> Self {
-        Self {
-            matmul: MatMul { inp, out },
-        }
-    }
-}
-
-#[derive(Default, Debug, Clone, Copy, Sequential)]
 pub struct Linear<I: Dim, O: Dim> {
     pub matmul: MatMul<I, O>,
     pub bias: Bias1D<O>,

@@ -104,6 +104,23 @@ pub trait UpdateParams<E: Dtype, D: Device<E>> {
     ) -> Result<(), D::Err>;
 }
 
+pub trait ZeroGrads<E: Dtype, D: Device<E>> {
+    fn zero_grads(&self, grads: &mut Gradients<E, D>) {
+        self.try_zero_grads(grads).unwrap()
+    }
+    fn try_zero_grads(&self, grads: &mut Gradients<E, D>) -> Result<(), D::Err>;
+
+    fn alloc_grads(&self) -> Gradients<E, D> {
+        self.try_alloc_grads().unwrap()
+    }
+    fn try_alloc_grads(&self) -> Result<Gradients<E, D>, D::Err> {
+        let mut grads = Gradients::leaky();
+        self.try_zero_grads(&mut grads)?;
+        grads.retain_current_grads_as_leafs();
+        Ok(grads)
+    }
+}
+
 pub trait BuildModuleExt<M>: Sized {
     fn build_module_ext<E: Dtype>(&self, m: M) -> M::Built
     where
@@ -117,19 +134,3 @@ pub trait BuildModuleExt<M>: Sized {
     }
 }
 impl<D, M> BuildModuleExt<M> for D {}
-
-pub trait ZeroGrads<E: Dtype, D: Device<E>> {
-    fn zero_grads(&self, grads: &mut Gradients<E, D>) {
-        self.try_zero_grads(grads).unwrap()
-    }
-    fn try_zero_grads(&self, grads: &mut Gradients<E, D>) -> Result<(), D::Err>;
-
-    fn alloc_grads(&self) -> Gradients<E, D> {
-        self.try_alloc_grads().unwrap()
-    }
-    fn try_alloc_grads(&self) -> Result<Gradients<E, D>, D::Err> {
-        let mut grads = Gradients::leaky();
-        self.try_zero_grads(&mut grads)?;
-        Ok(grads)
-    }
-}
