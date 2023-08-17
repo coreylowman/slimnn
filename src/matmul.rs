@@ -9,30 +9,30 @@ use dfdx::{
 use rand_distr::Uniform;
 
 #[derive(Clone, Copy, Debug, Default)]
-pub struct MatMul<I: Dim, O: Dim> {
+pub struct MatMulConfig<I: Dim, O: Dim> {
     pub inp: I,
     pub out: O,
 }
 
-pub type ConstMatMul<const I: usize, const O: usize> = MatMul<Const<I>, Const<O>>;
+pub type ConstMatMulConfig<const I: usize, const O: usize> = MatMulConfig<Const<I>, Const<O>>;
 
-impl<I: Dim, O: Dim, E: Dtype, D: Device<E>> BuildOnDevice<E, D> for MatMul<I, O> {
-    type Built = DeviceMatMul<I, O, E, D>;
+impl<I: Dim, O: Dim, E: Dtype, D: Device<E>> BuildOnDevice<E, D> for MatMulConfig<I, O> {
+    type Built = MatMul<I, O, E, D>;
     fn try_build_on_device(&self, device: &D) -> Result<Self::Built, D::Err> {
-        Ok(DeviceMatMul {
+        Ok(MatMul {
             weight: device.try_zeros_like(&(self.inp, self.out))?,
         })
     }
 }
 
 #[derive(Clone, Debug, UpdateParams, ZeroGrads)]
-pub struct DeviceMatMul<I: Dim, O: Dim, Elem: Dtype, Dev: Device<Elem>> {
+pub struct MatMul<I: Dim, O: Dim, Elem: Dtype, Dev: Device<Elem>> {
     #[param]
     pub weight: Tensor<(I, O), Elem, Dev>,
 }
 
 // NOTE: others can simply #[derive(ResetParams)]
-impl<I: Dim, O: Dim, E, D: Device<E>> ResetParams<E, D> for DeviceMatMul<I, O, E, D>
+impl<I: Dim, O: Dim, E, D: Device<E>> ResetParams<E, D> for MatMul<I, O, E, D>
 where
     E: Dtype + num_traits::Float + rand_distr::uniform::SampleUniform,
 {
@@ -44,7 +44,7 @@ where
 }
 
 impl<S: Shape, I: Dim, O: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>> Module<Tensor<S, E, D, T>>
-    for DeviceMatMul<I, O, E, D>
+    for MatMul<I, O, E, D>
 where
     Tensor<S, E, D, T>: TryMatMul<Tensor<(I, O), E, D>>,
 {

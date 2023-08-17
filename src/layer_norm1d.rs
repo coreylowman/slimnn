@@ -3,14 +3,14 @@ use dfdx::prelude::*;
 
 #[derive(Default, Clone, Copy, Debug)]
 #[repr(transparent)]
-pub struct LayerNorm1D<M: Dim>(pub M);
+pub struct LayerNorm1DConfig<M: Dim>(pub M);
 
-pub type ConstLayerNorm1D<const M: usize> = LayerNorm1D<Const<M>>;
+pub type ConstLayerNorm1DConfig<const M: usize> = LayerNorm1DConfig<Const<M>>;
 
-impl<M: Dim, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for LayerNorm1D<M> {
-    type Built = DeviceLayerNorm1D<M, E, D>;
+impl<M: Dim, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for LayerNorm1DConfig<M> {
+    type Built = LayerNorm1D<M, E, D>;
     fn try_build_on_device(&self, device: &D) -> Result<Self::Built, D::Err> {
-        Ok(DeviceLayerNorm1D {
+        Ok(LayerNorm1D {
             gamma: device.try_ones_like(&(self.0,))?,
             beta: device.try_zeros_like(&(self.0,))?,
             epsilon: 1e-5,
@@ -19,7 +19,7 @@ impl<M: Dim, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for LayerNorm1D<
 }
 
 #[derive(Clone, Debug, UpdateParams, ZeroGrads)]
-pub struct DeviceLayerNorm1D<M: Dim, Elem: Dtype, Dev: Device<Elem>> {
+pub struct LayerNorm1D<M: Dim, Elem: Dtype, Dev: Device<Elem>> {
     #[param]
     pub gamma: Tensor<(M,), Elem, Dev>,
     #[param]
@@ -27,7 +27,7 @@ pub struct DeviceLayerNorm1D<M: Dim, Elem: Dtype, Dev: Device<Elem>> {
     pub epsilon: f64,
 }
 
-impl<M: Dim, E: Dtype, D: Device<E>> crate::ResetParams<E, D> for DeviceLayerNorm1D<M, E, D> {
+impl<M: Dim, E: Dtype, D: Device<E>> crate::ResetParams<E, D> for LayerNorm1D<M, E, D> {
     fn try_reset_params(&mut self) -> Result<(), D::Err> {
         self.gamma.try_fill_with_ones()?;
         self.beta.try_fill_with_zeros()
@@ -35,7 +35,7 @@ impl<M: Dim, E: Dtype, D: Device<E>> crate::ResetParams<E, D> for DeviceLayerNor
 }
 
 impl<M: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>> crate::Module<Tensor<(M,), E, D, T>>
-    for DeviceLayerNorm1D<M, E, D>
+    for LayerNorm1D<M, E, D>
 {
     type Output = Tensor<(M,), E, D, T>;
     type Error = D::Err;
@@ -47,7 +47,7 @@ impl<M: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>> crate::Module<Tensor<(M,), E
 }
 
 impl<Batch: Dim, M: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>>
-    crate::Module<Tensor<(Batch, M), E, D, T>> for DeviceLayerNorm1D<M, E, D>
+    crate::Module<Tensor<(Batch, M), E, D, T>> for LayerNorm1D<M, E, D>
 {
     type Output = Tensor<(Batch, M), E, D, T>;
     type Error = D::Err;
@@ -59,7 +59,7 @@ impl<Batch: Dim, M: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>>
 }
 
 impl<Batch: Dim, Seq: Dim, M: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>>
-    crate::Module<Tensor<(Batch, Seq, M), E, D, T>> for DeviceLayerNorm1D<M, E, D>
+    crate::Module<Tensor<(Batch, Seq, M), E, D, T>> for LayerNorm1D<M, E, D>
 {
     type Output = Tensor<(Batch, Seq, M), E, D, T>;
     type Error = D::Err;

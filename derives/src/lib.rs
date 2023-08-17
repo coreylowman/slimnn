@@ -2,7 +2,7 @@ use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{parse_macro_input, parse_quote, Data, DeriveInput, Fields, Index};
 
-#[proc_macro_derive(CustomModule, attributes(module))]
+#[proc_macro_derive(CustomModule, attributes(module, built))]
 pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
@@ -223,7 +223,7 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     })
 }
 
-#[proc_macro_derive(Sequential)]
+#[proc_macro_derive(Sequential, attributes(built))]
 pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 

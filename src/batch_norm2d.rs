@@ -3,14 +3,14 @@ use dfdx::prelude::*;
 
 #[derive(Default, Clone, Copy, Debug)]
 #[repr(transparent)]
-pub struct BatchNorm2D<C: Dim>(pub C);
+pub struct BatchNorm2DConfig<C: Dim>(pub C);
 
-pub type ConstBatchNorm2D<const C: usize> = BatchNorm2D<Const<C>>;
+pub type ConstBatchNorm2DConfig<const C: usize> = BatchNorm2DConfig<Const<C>>;
 
-impl<C: Dim, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for BatchNorm2D<C> {
-    type Built = DeviceBatchNorm2D<C, E, D>;
+impl<C: Dim, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for BatchNorm2DConfig<C> {
+    type Built = BatchNorm2D<C, E, D>;
     fn try_build_on_device(&self, device: &D) -> Result<Self::Built, D::Err> {
-        Ok(DeviceBatchNorm2D {
+        Ok(BatchNorm2D {
             scale: device.try_ones_like(&(self.0,))?,
             bias: device.try_zeros_like(&(self.0,))?,
             running_mean: device.try_zeros_like(&(self.0,))?,
@@ -22,7 +22,7 @@ impl<C: Dim, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for BatchNorm2D<
 }
 
 #[derive(Clone, Debug, UpdateParams, ZeroGrads)]
-pub struct DeviceBatchNorm2D<C: Dim, Elem: Dtype, Dev: Device<Elem>> {
+pub struct BatchNorm2D<C: Dim, Elem: Dtype, Dev: Device<Elem>> {
     #[param]
     pub scale: Tensor<(C,), Elem, Dev>,
     #[param]
@@ -33,7 +33,7 @@ pub struct DeviceBatchNorm2D<C: Dim, Elem: Dtype, Dev: Device<Elem>> {
     pub momentum: f64,
 }
 
-impl<C: Dim, E: Dtype, D: Device<E>> crate::ResetParams<E, D> for DeviceBatchNorm2D<C, E, D> {
+impl<C: Dim, E: Dtype, D: Device<E>> crate::ResetParams<E, D> for BatchNorm2D<C, E, D> {
     fn try_reset_params(&mut self) -> Result<(), D::Err> {
         self.scale.try_fill_with_ones()?;
         self.bias.try_fill_with_zeros()?;
@@ -43,7 +43,7 @@ impl<C: Dim, E: Dtype, D: Device<E>> crate::ResetParams<E, D> for DeviceBatchNor
 }
 
 impl<C: Dim, H: Dim, W: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>>
-    crate::Module<Tensor<(C, H, W), E, D, T>> for DeviceBatchNorm2D<C, E, D>
+    crate::Module<Tensor<(C, H, W), E, D, T>> for BatchNorm2D<C, E, D>
 {
     type Output = Tensor<(C, H, W), E, D, T>;
     type Error = D::Err;
@@ -61,7 +61,7 @@ impl<C: Dim, H: Dim, W: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>>
 }
 
 impl<Batch: Dim, C: Dim, H: Dim, W: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>>
-    crate::Module<Tensor<(Batch, C, H, W), E, D, T>> for DeviceBatchNorm2D<C, E, D>
+    crate::Module<Tensor<(Batch, C, H, W), E, D, T>> for BatchNorm2D<C, E, D>
 {
     type Output = Tensor<(Batch, C, H, W), E, D, T>;
     type Error = D::Err;
@@ -81,7 +81,7 @@ impl<Batch: Dim, C: Dim, H: Dim, W: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>>
     }
 }
 
-impl<C: Dim, E: Dtype, D: Device<E>> DeviceBatchNorm2D<C, E, D> {
+impl<C: Dim, E: Dtype, D: Device<E>> BatchNorm2D<C, E, D> {
     /// generic batchnorm forward for training
     fn train_fwd<S: Shape, T: Tape<E, D>, Ax: Axes>(
         &mut self,

@@ -6,7 +6,7 @@ use dfdx::{
 };
 
 #[derive(Debug, Default, Clone, Copy)]
-pub struct Conv2D<
+pub struct Conv2DConfig<
     InChan: Dim,
     OutChan: Dim,
     KernelSize: Dim,
@@ -24,7 +24,7 @@ pub struct Conv2D<
     pub groups: Groups,
 }
 
-pub type ConstConv2D<
+pub type ConstConv2DConfig<
     const IN_CHAN: usize,
     const OUT_CHAN: usize,
     const KERNEL_SIZE: usize,
@@ -32,7 +32,7 @@ pub type ConstConv2D<
     const PADDING: usize = 0,
     const DILATION: usize = 1,
     const GROUPS: usize = 1,
-> = Conv2D<
+> = Conv2DConfig<
     Const<IN_CHAN>,
     Const<OUT_CHAN>,
     Const<KERNEL_SIZE>,
@@ -43,12 +43,12 @@ pub type ConstConv2D<
 >;
 
 impl<I: Dim, O: Dim, K: Dim, S: Dim, P: Dim, L: Dim, G: Dim, E: Dtype, D: Device<E>>
-    crate::BuildOnDevice<E, D> for Conv2D<I, O, K, S, P, L, G>
+    crate::BuildOnDevice<E, D> for Conv2DConfig<I, O, K, S, P, L, G>
 where
     I: std::ops::Div<G>,
     <I as std::ops::Div<G>>::Output: Dim,
 {
-    type Built = DeviceConv2D<I, O, K, S, P, L, G, E, D>;
+    type Built = Conv2D<I, O, K, S, P, L, G, E, D>;
     fn try_build_on_device(&self, device: &D) -> Result<Self::Built, <D>::Err> {
         assert_eq!(self.in_chan.size() % self.groups.size(), 0);
         assert_eq!(self.out_chan.size() % self.groups.size(), 0);
@@ -59,7 +59,7 @@ where
             self.kernel_size,
             self.kernel_size,
         ))?;
-        Ok(DeviceConv2D {
+        Ok(Conv2D {
             weight,
             stride: self.stride,
             padding: self.padding,
@@ -69,8 +69,8 @@ where
     }
 }
 
-#[derive(Debug, Clone, UpdateParams)]
-pub struct DeviceConv2D<InChan, OutChan, KernelSize, Stride, Padding, Dilation, Groups, Elem, Dev>
+#[derive(Debug, Clone, UpdateParams, ZeroGrads)]
+pub struct Conv2D<InChan, OutChan, KernelSize, Stride, Padding, Dilation, Groups, Elem, Dev>
 where
     InChan: std::ops::Div<Groups>,
     <InChan as std::ops::Div<Groups>>::Output: Dim,
@@ -102,7 +102,7 @@ where
 }
 
 impl<I: Dim, O: Dim, K: Dim, S: Dim, P: Dim, L: Dim, G: Dim, E, D> crate::ResetParams<E, D>
-    for DeviceConv2D<I, O, K, S, P, L, G, E, D>
+    for Conv2D<I, O, K, S, P, L, G, E, D>
 where
     I: std::ops::Div<G>,
     <I as std::ops::Div<G>>::Output: Dim,
@@ -119,7 +119,7 @@ where
 }
 
 impl<I: Dim, O: Dim, K: Dim, S: Dim, P: Dim, L: Dim, G: Dim, E, D, Img> crate::Module<Img>
-    for DeviceConv2D<I, O, K, S, P, L, G, E, D>
+    for Conv2D<I, O, K, S, P, L, G, E, D>
 where
     I: std::ops::Div<G>,
     <I as std::ops::Div<G>>::Output: Dim,

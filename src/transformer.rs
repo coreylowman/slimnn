@@ -6,86 +6,93 @@ use dfdx::{
     tensor_ops::{Device, TryAdd},
 };
 
-use crate::layer_norm1d::{DeviceLayerNorm1D, LayerNorm1D};
-use crate::linear::Linear;
-use crate::multi_head_attention::{DeviceMultiHeadAttention, MultiHeadAttention};
+use crate::layer_norm1d::{LayerNorm1D, LayerNorm1DConfig};
+use crate::linear::LinearConfig;
+use crate::multi_head_attention::{MultiHeadAttention, MultiHeadAttentionConfig};
 use crate::relu::ReLU;
 use crate::residual_add::ResidualAdd;
 
 #[derive(Clone, Debug, Sequential)]
-pub struct FeedForward<Model: Dim, F: Dim> {
-    pub l1: Linear<Model, F>,
+#[built(FeedForward)]
+pub struct FeedForwardConfig<Model: Dim, F: Dim> {
+    pub l1: LinearConfig<Model, F>,
     pub act1: ReLU,
-    pub l2: Linear<F, Model>,
+    pub l2: LinearConfig<F, Model>,
 }
 
 #[derive(Clone, Debug, Sequential)]
-pub struct EncoderBlock<Model: Dim, NumHeads: Dim, F: Dim> {
-    pub self_attn: ResidualAdd<MultiHeadAttention<Model, NumHeads>>,
-    pub norm1: LayerNorm1D<Model>,
-    pub ff: ResidualAdd<FeedForward<Model, F>>,
-    pub norm2: LayerNorm1D<Model>,
+#[built(EncoderBlock)]
+pub struct EncoderBlockConfig<Model: Dim, NumHeads: Dim, F: Dim> {
+    pub self_attn: ResidualAdd<MultiHeadAttentionConfig<Model, NumHeads>>,
+    pub norm1: LayerNorm1DConfig<Model>,
+    pub ff: ResidualAdd<FeedForwardConfig<Model, F>>,
+    pub norm2: LayerNorm1DConfig<Model>,
 }
 
-impl<Model: Dim, NumHeads: Dim, F: Dim> EncoderBlock<Model, NumHeads, F> {
+impl<Model: Dim, NumHeads: Dim, F: Dim> EncoderBlockConfig<Model, NumHeads, F> {
     pub fn new(model: Model, num_heads: NumHeads, f: F) -> Self {
-        EncoderBlock {
-            self_attn: ResidualAdd(MultiHeadAttention::new(model, num_heads, model, model)),
-            norm1: LayerNorm1D(model),
-            ff: ResidualAdd(FeedForward {
-                l1: Linear::new(model, f),
+        EncoderBlockConfig {
+            self_attn: ResidualAdd(MultiHeadAttentionConfig::new(
+                model, num_heads, model, model,
+            )),
+            norm1: LayerNorm1DConfig(model),
+            ff: ResidualAdd(FeedForwardConfig {
+                l1: LinearConfig::new(model, f),
                 act1: ReLU,
-                l2: Linear::new(f, model),
+                l2: LinearConfig::new(f, model),
             }),
-            norm2: LayerNorm1D(model),
+            norm2: LayerNorm1DConfig(model),
         }
     }
 }
 
 #[derive(Clone, Debug, CustomModule)]
-pub struct DecoderBlock<Model: Dim, NumHeads: Dim, F: Dim> {
+#[built(DecoderBlock)]
+pub struct DecoderBlockConfig<Model: Dim, NumHeads: Dim, F: Dim> {
     #[module]
-    pub self_attn: ResidualAdd<MultiHeadAttention<Model, NumHeads>>,
+    pub self_attn: ResidualAdd<MultiHeadAttentionConfig<Model, NumHeads>>,
     #[module]
-    pub norm1: LayerNorm1D<Model>,
+    pub norm1: LayerNorm1DConfig<Model>,
     #[module]
-    pub mh_attn: MultiHeadAttention<Model, NumHeads>,
+    pub mh_attn: MultiHeadAttentionConfig<Model, NumHeads>,
     #[module]
-    pub norm2: LayerNorm1D<Model>,
+    pub norm2: LayerNorm1DConfig<Model>,
     #[module]
-    pub ff: ResidualAdd<FeedForward<Model, F>>,
+    pub ff: ResidualAdd<FeedForwardConfig<Model, F>>,
     #[module]
-    pub norm3: LayerNorm1D<Model>,
+    pub norm3: LayerNorm1DConfig<Model>,
 }
 
-impl<Model: Dim, NumHeads: Dim, F: Dim> DecoderBlock<Model, NumHeads, F> {
+impl<Model: Dim, NumHeads: Dim, F: Dim> DecoderBlockConfig<Model, NumHeads, F> {
     pub fn new(model: Model, num_heads: NumHeads, f: F) -> Self {
-        DecoderBlock {
-            self_attn: ResidualAdd(MultiHeadAttention::new(model, num_heads, model, model)),
-            norm1: LayerNorm1D(model),
-            mh_attn: MultiHeadAttention::new(model, num_heads, model, model),
-            norm2: LayerNorm1D(model),
-            ff: ResidualAdd(FeedForward {
-                l1: Linear::new(model, f),
+        DecoderBlockConfig {
+            self_attn: ResidualAdd(MultiHeadAttentionConfig::new(
+                model, num_heads, model, model,
+            )),
+            norm1: LayerNorm1DConfig(model),
+            mh_attn: MultiHeadAttentionConfig::new(model, num_heads, model, model),
+            norm2: LayerNorm1DConfig(model),
+            ff: ResidualAdd(FeedForwardConfig {
+                l1: LinearConfig::new(model, f),
                 act1: ReLU,
-                l2: Linear::new(f, model),
+                l2: LinearConfig::new(f, model),
             }),
-            norm3: LayerNorm1D(model),
+            norm3: LayerNorm1DConfig(model),
         }
     }
 }
 
 impl<M: Dim, H: Dim, F: Dim, E: Dtype, D: Device<E>, Tgt, Mem> basenn::Module<(Tgt, Mem)>
-    for DeviceDecoderBlock<M, H, F, E, D>
+    for DecoderBlock<M, H, F, E, D>
 where
     Tgt: WithEmptyTape + SplitTape + TryAdd<Tgt::NoTape, Output = Tgt> + HasErr<Err = D::Err>,
     Mem: Clone,
-    ResidualAdd<DeviceMultiHeadAttention<M, H, M, M, E, D>>:
+    ResidualAdd<MultiHeadAttention<M, H, M, M, E, D>>:
         basenn::Module<Tgt, Output = Tgt, Error = D::Err>,
-    DeviceMultiHeadAttention<M, H, M, M, E, D>:
+    MultiHeadAttention<M, H, M, M, E, D>:
         basenn::Module<(Tgt, Mem, Mem), Output = Tgt, Error = D::Err>,
-    DeviceLayerNorm1D<M, E, D>: basenn::Module<Tgt, Output = Tgt, Error = D::Err>,
-    ResidualAdd<DeviceFeedForward<M, F, E, D>>: basenn::Module<Tgt, Output = Tgt, Error = D::Err>,
+    LayerNorm1D<M, E, D>: basenn::Module<Tgt, Output = Tgt, Error = D::Err>,
+    ResidualAdd<FeedForward<M, F, E, D>>: basenn::Module<Tgt, Output = Tgt, Error = D::Err>,
 {
     type Output = Tgt;
     type Error = D::Err;
@@ -107,14 +114,15 @@ where
 }
 
 #[derive(Clone, Debug, CustomModule)]
-pub struct Transformer<Model: Dim, NumHeads: Dim, F: Dim> {
+#[built(Transformer)]
+pub struct TransformerConfig<Model: Dim, NumHeads: Dim, F: Dim> {
     #[module]
-    pub encoder: Vec<EncoderBlock<Model, NumHeads, F>>,
+    pub encoder: Vec<EncoderBlockConfig<Model, NumHeads, F>>,
     #[module]
-    pub decoder: Vec<DecoderBlock<Model, NumHeads, F>>,
+    pub decoder: Vec<DecoderBlockConfig<Model, NumHeads, F>>,
 }
 
-impl<Model: Dim, NumHeads: Dim, F: Dim> Transformer<Model, NumHeads, F> {
+impl<Model: Dim, NumHeads: Dim, F: Dim> TransformerConfig<Model, NumHeads, F> {
     pub fn new(
         model: Model,
         num_heads: NumHeads,
@@ -124,21 +132,21 @@ impl<Model: Dim, NumHeads: Dim, F: Dim> Transformer<Model, NumHeads, F> {
     ) -> Self {
         let mut encoder = Vec::with_capacity(num_encoder_layers);
         for _ in 0..num_encoder_layers {
-            encoder.push(EncoderBlock::new(model, num_heads, f));
+            encoder.push(EncoderBlockConfig::new(model, num_heads, f));
         }
         let mut decoder = Vec::with_capacity(num_decoder_layers);
         for _ in 0..num_decoder_layers {
-            decoder.push(DecoderBlock::new(model, num_heads, f));
+            decoder.push(DecoderBlockConfig::new(model, num_heads, f));
         }
         Self { encoder, decoder }
     }
 }
 
 impl<M: Dim, H: Dim, F: Dim, E: Dtype, D: Device<E>, Src: SplitTape, Tgt: PutTape<Src::Tape>>
-    basenn::Module<(Src, Tgt)> for DeviceTransformer<M, H, F, E, D>
+    basenn::Module<(Src, Tgt)> for Transformer<M, H, F, E, D>
 where
-    Vec<DeviceEncoderBlock<M, H, F, E, D>>: basenn::Module<Src, Output = Src, Error = D::Err>,
-    DeviceDecoderBlock<M, H, F, E, D>: basenn::Module<
+    Vec<EncoderBlock<M, H, F, E, D>>: basenn::Module<Src, Output = Src, Error = D::Err>,
+    DecoderBlock<M, H, F, E, D>: basenn::Module<
         (<Tgt as PutTape<Src::Tape>>::Output, Src::NoTape),
         Output = <Tgt as PutTape<Src::Tape>>::Output,
         Error = D::Err,

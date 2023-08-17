@@ -1,34 +1,35 @@
-use crate::linear::Linear;
+use crate::linear::LinearConfig;
 use derives::*;
 use dfdx::{shapes::*, tensor::*, tensor_ops::*};
 use num_traits::Float;
 
 #[derive(Default, Debug, Copy, Clone, CustomModule)]
-pub struct MultiHeadAttention<Embed: Dim, NumHeads: Dim, K: Dim = Embed, V: Dim = Embed> {
+#[built(MultiHeadAttention)]
+pub struct MultiHeadAttentionConfig<Embed: Dim, NumHeads: Dim, K: Dim = Embed, V: Dim = Embed> {
     #[module]
-    pub w_q: Linear<Embed, K>,
+    pub w_q: LinearConfig<Embed, K>,
     #[module]
-    pub w_k: Linear<Embed, K>,
+    pub w_k: LinearConfig<Embed, K>,
     #[module]
-    pub w_v: Linear<Embed, V>,
+    pub w_v: LinearConfig<Embed, V>,
     #[module]
-    pub w_o: Linear<V, Embed>,
+    pub w_o: LinearConfig<V, Embed>,
     pub num_heads: NumHeads,
     pub k_dim: K,
     pub v_dim: V,
 }
 
-impl<Embed: Dim, NumHeads: Dim, K: Dim, V: Dim> MultiHeadAttention<Embed, NumHeads, K, V> {
+impl<Embed: Dim, NumHeads: Dim, K: Dim, V: Dim> MultiHeadAttentionConfig<Embed, NumHeads, K, V> {
     pub fn new(embed: Embed, num_heads: NumHeads, k: K, v: V) -> Self {
         assert!(
             k.size() % num_heads.size() == 0 && v.size() % num_heads.size() == 0,
             "NUM_HEADS must divide K_DIM & V_DIM evenly! If you haven't specified K_DIM & V_DIM, they default to EMBED_DIM, which means NUM_HEADS must divide EMBED_DIM evenly."
         );
         Self {
-            w_q: Linear::new(embed, k),
-            w_k: Linear::new(embed, k),
-            w_v: Linear::new(embed, v),
-            w_o: Linear::new(v, embed),
+            w_q: LinearConfig::new(embed, k),
+            w_k: LinearConfig::new(embed, k),
+            w_v: LinearConfig::new(embed, v),
+            w_o: LinearConfig::new(v, embed),
             num_heads,
             k_dim: k,
             v_dim: v,
@@ -41,7 +42,7 @@ impl<M: Dim, H: Dim, K: Dim, V: Dim, E, D, S1, S2, T>
         Tensor<(S1, M), E, D, T>,
         Tensor<(S2, M), E, D>,
         Tensor<(S2, M), E, D>,
-    )> for DeviceMultiHeadAttention<M, H, K, V, E, D>
+    )> for MultiHeadAttention<M, H, K, V, E, D>
 where
     E: Dtype + Float,
     D: Device<E>,
@@ -77,7 +78,7 @@ impl<M: Dim, H: Dim, K: Dim, V: Dim, E, D, B, S1, S2, T>
         Tensor<(B, S1, M), E, D, T>,
         Tensor<(B, S2, M), E, D>,
         Tensor<(B, S2, M), E, D>,
-    )> for DeviceMultiHeadAttention<M, H, K, V, E, D>
+    )> for MultiHeadAttention<M, H, K, V, E, D>
 where
     E: Dtype + Float,
     D: Device<E>,
@@ -135,7 +136,7 @@ where
 }
 
 impl<M: Dim, H: Dim, K: Dim, V: Dim, E, D, Src> basenn::Module<Src>
-    for DeviceMultiHeadAttention<M, H, K, V, E, D>
+    for MultiHeadAttention<M, H, K, V, E, D>
 where
     E: Dtype,
     D: Device<E>,

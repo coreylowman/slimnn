@@ -1,21 +1,21 @@
-use crate::{bias1d::Bias1D, matmul::MatMul};
+use crate::{bias1d::Bias1DConfig, matmul::MatMulConfig};
 
 use derives::Sequential;
 use dfdx::shapes::{Const, Dim};
 
 #[derive(Default, Debug, Clone, Copy, Sequential)]
-pub struct Linear<I: Dim, O: Dim> {
-    pub matmul: MatMul<I, O>,
-    pub bias: Bias1D<O>,
+pub struct LinearConfig<I: Dim, O: Dim> {
+    pub matmul: MatMulConfig<I, O>,
+    pub bias: Bias1DConfig<O>,
 }
 
-pub type ConstLinear<const I: usize, const O: usize> = Linear<Const<I>, Const<O>>;
+pub type ConstLinearConfig<const I: usize, const O: usize> = LinearConfig<Const<I>, Const<O>>;
 
-impl<I: Dim, O: Dim> Linear<I, O> {
+impl<I: Dim, O: Dim> LinearConfig<I, O> {
     pub fn new(inp: I, out: O) -> Self {
         Self {
-            matmul: MatMul { inp, out },
-            bias: Bias1D(out),
+            matmul: MatMulConfig { inp, out },
+            bias: Bias1DConfig(out),
         }
     }
 }
