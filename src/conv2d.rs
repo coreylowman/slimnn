@@ -24,7 +24,7 @@ pub struct Conv2DConfig<
     pub groups: Groups,
 }
 
-pub type ConstConv2DConfig<
+pub type Conv2DConstConfig<
     const IN_CHAN: usize,
     const OUT_CHAN: usize,
     const KERNEL_SIZE: usize,

@@ -1,34 +1,34 @@
 #![feature(generic_const_exprs)]
 
 use slimnn::{
-    avg_pool_global::AvgPoolGlobal, batch_norm2d::ConstBatchNorm2DConfig,
-    conv2d::ConstConv2DConfig, generalized_add::GeneralizedAdd, linear::ConstLinearConfig,
-    max_pool_2d::ConstMaxPool2D, relu::ReLU, residual_add::ResidualAdd, *,
+    avg_pool_global::AvgPoolGlobal, batch_norm2d::BatchNorm2DConstConfig,
+    conv2d::Conv2DConstConfig, generalized_add::GeneralizedAdd, linear::LinearConstConfig,
+    max_pool_2d::MaxPool2DConst, relu::ReLU, residual_add::ResidualAdd, *,
 };
 
 fn main() {
     #[derive(Default, Clone, Sequential)]
     pub struct BasicBlockInternal<const C: usize> {
-        conv1: ConstConv2DConfig<C, C, 3, 1, 1>,
-        bn1: ConstBatchNorm2DConfig<C>,
+        conv1: Conv2DConstConfig<C, C, 3, 1, 1>,
+        bn1: BatchNorm2DConstConfig<C>,
         relu: ReLU,
-        conv2: ConstConv2DConfig<C, C, 3, 1, 1>,
-        bn2: ConstBatchNorm2DConfig<C>,
+        conv2: Conv2DConstConfig<C, C, 3, 1, 1>,
+        bn2: BatchNorm2DConstConfig<C>,
     }
 
     #[derive(Default, Clone, Sequential)]
     pub struct DownsampleA<const C: usize, const D: usize> {
-        conv1: ConstConv2DConfig<C, D, 3, 2, 1>,
-        bn1: ConstBatchNorm2DConfig<D>,
+        conv1: Conv2DConstConfig<C, D, 3, 2, 1>,
+        bn1: BatchNorm2DConstConfig<D>,
         relu: ReLU,
-        conv2: ConstConv2DConfig<D, D, 3, 1, 1>,
-        bn2: ConstBatchNorm2DConfig<D>,
+        conv2: Conv2DConstConfig<D, D, 3, 1, 1>,
+        bn2: BatchNorm2DConstConfig<D>,
     }
 
     #[derive(Default, Clone, Sequential)]
     pub struct DownsampleB<const C: usize, const D: usize> {
-        conv1: ConstConv2DConfig<C, D, 1, 2, 0>,
-        bn1: ConstBatchNorm2DConfig<D>,
+        conv1: Conv2DConstConfig<C, D, 1, 2, 0>,
+        bn1: BatchNorm2DConstConfig<D>,
     }
 
     pub type BasicBlock<const C: usize> = ResidualAdd<BasicBlockInternal<C>>;
@@ -38,10 +38,10 @@ fn main() {
 
     #[derive(Default, Clone, Sequential)]
     pub struct Head {
-        conv: ConstConv2DConfig<3, 64, 7, 2, 3>,
-        bn: ConstBatchNorm2DConfig<64>,
+        conv: Conv2DConstConfig<3, 64, 7, 2, 3>,
+        bn: BatchNorm2DConstConfig<64>,
         relu: ReLU,
-        pool: ConstMaxPool2D<3, 2, 1>,
+        pool: MaxPool2DConst<3, 2, 1>,
     }
 
     #[derive(Default, Clone, Sequential)]
@@ -51,7 +51,7 @@ fn main() {
         l2: (Downsample<64, 128>, ReLU, BasicBlock<128>, ReLU),
         l3: (Downsample<128, 256>, ReLU, BasicBlock<256>, ReLU),
         l4: (Downsample<256, 512>, ReLU, BasicBlock<512>, ReLU),
-        l5: (AvgPoolGlobal, ConstLinearConfig<512, NUM_CLASSES>),
+        l5: (AvgPoolGlobal, LinearConstConfig<512, NUM_CLASSES>),
     }
 
     {

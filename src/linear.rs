@@ -9,7 +9,7 @@ pub struct LinearConfig<I: Dim, O: Dim> {
     pub bias: Bias1DConfig<O>,
 }
 
-pub type ConstLinearConfig<const I: usize, const O: usize> = LinearConfig<Const<I>, Const<O>>;
+pub type LinearConstConfig<const I: usize, const O: usize> = LinearConfig<Const<I>, Const<O>>;
 
 impl<I: Dim, O: Dim> LinearConfig<I, O> {
     pub fn new(inp: I, out: O) -> Self {

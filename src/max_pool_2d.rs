@@ -17,7 +17,7 @@ pub struct MaxPool2D<
     pub dilation: Dilation,
 }
 
-pub type ConstMaxPool2D<
+pub type MaxPool2DConst<
     const KERNEL_SIZE: usize,
     const STRIDE: usize = 1,
     const PADDING: usize = 0,

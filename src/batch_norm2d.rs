@@ -5,7 +5,7 @@ use dfdx::prelude::*;
 #[repr(transparent)]
 pub struct BatchNorm2DConfig<C: Dim>(pub C);
 
-pub type ConstBatchNorm2DConfig<const C: usize> = BatchNorm2DConfig<Const<C>>;
+pub type BatchNorm2DConstConfig<const C: usize> = BatchNorm2DConfig<Const<C>>;
 
 impl<C: Dim, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for BatchNorm2DConfig<C> {
     type Built = BatchNorm2D<C, E, D>;

@@ -5,7 +5,7 @@ use dfdx::prelude::*;
 #[repr(transparent)]
 pub struct LayerNorm1DConfig<M: Dim>(pub M);
 
-pub type ConstLayerNorm1DConfig<const M: usize> = LayerNorm1DConfig<Const<M>>;
+pub type LayerNorm1DConstConfig<const M: usize> = LayerNorm1DConfig<Const<M>>;
 
 impl<M: Dim, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for LayerNorm1DConfig<M> {
     type Built = LayerNorm1D<M, E, D>;

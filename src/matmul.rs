@@ -14,7 +14,7 @@ pub struct MatMulConfig<I: Dim, O: Dim> {
     pub out: O,
 }
 
-pub type ConstMatMulConfig<const I: usize, const O: usize> = MatMulConfig<Const<I>, Const<O>>;
+pub type MatMulConstConfig<const I: usize, const O: usize> = MatMulConfig<Const<I>, Const<O>>;
 
 impl<I: Dim, O: Dim, E: Dtype, D: Device<E>> BuildOnDevice<E, D> for MatMulConfig<I, O> {
     type Built = MatMul<I, O, E, D>;

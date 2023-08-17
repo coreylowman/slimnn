@@ -11,7 +11,7 @@ use dfdx::{
 #[repr(transparent)]
 pub struct Bias1DConfig<I: Dim>(pub I);
 
-pub type ConstBias1DConfig<const I: usize> = Bias1DConfig<Const<I>>;
+pub type Bias1DConstConfig<const I: usize> = Bias1DConfig<Const<I>>;
 
 impl<I: Dim, E: Dtype, D: Device<E>> BuildOnDevice<E, D> for Bias1DConfig<I> {
     type Built = Bias1D<I, E, D>;
