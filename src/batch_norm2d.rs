@@ -1,3 +1,4 @@
+use derives::{UpdateParams, ZeroGrads};
 use dfdx::prelude::*;
 
 #[derive(Default, Clone, Copy, Debug)]
@@ -20,12 +21,14 @@ impl<C: Dim, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for BatchNorm2D<
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct DeviceBatchNorm2D<C: Dim, E: Dtype, D: Device<E>> {
-    pub scale: Tensor<(C,), E, D>,
-    pub bias: Tensor<(C,), E, D>,
-    pub running_mean: Tensor<(C,), E, D>,
-    pub running_var: Tensor<(C,), E, D>,
+#[derive(Clone, Debug, UpdateParams, ZeroGrads)]
+pub struct DeviceBatchNorm2D<C: Dim, Elem: Dtype, Dev: Device<Elem>> {
+    #[param]
+    pub scale: Tensor<(C,), Elem, Dev>,
+    #[param]
+    pub bias: Tensor<(C,), Elem, Dev>,
+    pub running_mean: Tensor<(C,), Elem, Dev>,
+    pub running_var: Tensor<(C,), Elem, Dev>,
     pub epsilon: f64,
     pub momentum: f64,
 }
@@ -36,32 +39,6 @@ impl<C: Dim, E: Dtype, D: Device<E>> crate::ResetParams<E, D> for DeviceBatchNor
         self.bias.try_fill_with_zeros()?;
         self.running_mean.try_fill_with_zeros()?;
         self.running_var.try_fill_with_ones()
-    }
-}
-
-// NOTE: can't derive because we don't want to update running_mean/running_var
-impl<C: Dim, E: Dtype, D: Device<E>> crate::UpdateParams<E, D> for DeviceBatchNorm2D<C, E, D> {
-    fn try_update_params<M, Optim: crate::Optimizer<M, E, D>>(
-        &mut self,
-        optimizer: &mut Optim,
-        gradients: &Gradients<E, D>,
-        missing_tensors: &mut Vec<UniqueId>,
-    ) -> Result<(), D::Err> {
-        optimizer.update_tensor(&mut self.scale, gradients, missing_tensors)?;
-        optimizer.update_tensor(&mut self.bias, gradients, missing_tensors)
-    }
-}
-
-// NOTE: can't derive because we don't want to zero grad for running_mean/running_var
-impl<C: Dim, E: Dtype, D: Device<E>> crate::ZeroGrads<E, D> for DeviceBatchNorm2D<C, E, D> {
-    fn try_zero_grads(&self, grads: &mut Gradients<E, D>) -> Result<(), <D>::Err> {
-        self.scale
-            .device()
-            .try_fill_with_zeros(grads.get_or_alloc_mut(&self.scale)?)?;
-        self.bias
-            .device()
-            .try_fill_with_zeros(grads.get_or_alloc_mut(&self.bias)?)?;
-        Ok(())
     }
 }
 
