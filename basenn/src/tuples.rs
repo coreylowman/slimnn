@@ -11,6 +11,27 @@ macro_rules! tuple_impls {
             }
         }
 
+        impl<$($name: crate::SaveSafeTensors, )+> crate::SaveSafeTensors for ($($name,)+) {
+            fn write_safetensors(
+                &self,
+                location: &str,
+                tensors: &mut Vec<(String, safetensors::Dtype, Vec<usize>, Vec<u8>)>,
+            ) {
+                $(self.$idx.write_safetensors(&format!("{location}{}.", $idx), tensors);)+
+            }
+        }
+
+        impl<$($name: crate::LoadSafeTensors, )+> crate::LoadSafeTensors for ($($name,)+) {
+            fn read_safetensors<'a>(
+                &mut self,
+                location: &str,
+                tensors: &safetensors::SafeTensors<'a>,
+            ) -> Result<(), safetensors::SafeTensorError> {
+                $(self.$idx.read_safetensors(&format!("{location}{}.", $idx), tensors)?;)+
+                Ok(())
+            }
+        }
+
         impl<Dev: Device<Elem>, Elem: Dtype, $($name: crate::ResetParams<Elem, Dev>),+> crate::ResetParams<Elem, Dev> for ($($name,)+) {
             fn try_reset_params(&mut self) -> Result<(), Dev::Err> {
                 $(self.$idx.try_reset_params()?;)+

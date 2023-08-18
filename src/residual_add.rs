@@ -8,8 +8,14 @@ use dfdx::{
 
 use crate::Module;
 
-#[derive(Default, Clone, Debug, ResetParams, ZeroGrads, UpdateParams)]
-pub struct ResidualAdd<T>(#[module] pub T);
+#[derive(
+    Default, Clone, Debug, ResetParams, ZeroGrads, UpdateParams, SaveSafeTensors, LoadSafeTensors,
+)]
+pub struct ResidualAdd<T>(
+    #[module]
+    #[serialize]
+    pub T,
+);
 
 // TODO derive this
 impl<E: Dtype, D: Device<E>, T: BuildOnDevice<E, D>> BuildOnDevice<E, D> for ResidualAdd<T> {

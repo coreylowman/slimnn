@@ -1,4 +1,4 @@
-use derives::{UpdateParams, ZeroGrads};
+use derives::{LoadSafeTensors, SaveSafeTensors, UpdateParams, ZeroGrads};
 use dfdx::prelude::*;
 
 #[derive(Default, Clone, Copy, Debug)]
@@ -21,15 +21,21 @@ impl<C: Dim, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for BatchNorm2DC
     }
 }
 
-#[derive(Clone, Debug, UpdateParams, ZeroGrads)]
+#[derive(Clone, Debug, UpdateParams, ZeroGrads, SaveSafeTensors, LoadSafeTensors)]
 pub struct BatchNorm2D<C: Dim, Elem: Dtype, Dev: Device<Elem>> {
     #[param]
+    #[serialize]
     pub scale: Tensor<(C,), Elem, Dev>,
     #[param]
+    #[serialize]
     pub bias: Tensor<(C,), Elem, Dev>,
+    #[serialize]
     pub running_mean: Tensor<(C,), Elem, Dev>,
+    #[serialize]
     pub running_var: Tensor<(C,), Elem, Dev>,
+    #[serialize]
     pub epsilon: f64,
+    #[serialize]
     pub momentum: f64,
 }
 

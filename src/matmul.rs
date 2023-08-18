@@ -25,9 +25,10 @@ impl<I: Dim, O: Dim, E: Dtype, D: Device<E>> BuildOnDevice<E, D> for MatMulConfi
     }
 }
 
-#[derive(Clone, Debug, UpdateParams, ZeroGrads)]
+#[derive(Clone, Debug, UpdateParams, ZeroGrads, SaveSafeTensors, LoadSafeTensors)]
 pub struct MatMul<I: Dim, O: Dim, Elem: Dtype, Dev: Device<Elem>> {
     #[param]
+    #[serialize]
     pub weight: Tensor<(I, O), Elem, Dev>,
 }
 

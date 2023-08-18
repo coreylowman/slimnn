@@ -36,7 +36,7 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                                 where_clause
                                     .predicates
                                     .push(parse_quote!(#ty: basenn::BuildOnDevice<Elem, Dev>));
-                                quote_spanned!(f.span()=> #[module] #vis #name: <#ty as basenn::BuildOnDevice<Elem, Dev>>::Built,)
+                                quote_spanned!(f.span()=> #[module] #[serialize] #vis #name: <#ty as basenn::BuildOnDevice<Elem, Dev>>::Built,)
                             } else {
                                 quote_spanned!(f.span()=> #vis #name: #ty,)
                             }
@@ -56,7 +56,7 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                                 where_clause
                                     .predicates
                                     .push(parse_quote!(#ty: basenn::BuildOnDevice<Elem, Dev>));
-                                quote_spanned!(f.span()=> #[module] #vis <#ty as basenn::BuildOnDevice<Elem, Dev>>::Built,)
+                                quote_spanned!(f.span()=> #[module] #[serialize] #vis <#ty as basenn::BuildOnDevice<Elem, Dev>>::Built,)
                             } else {
                                 quote_spanned!(f.span()=> #vis #ty,)
                             }
@@ -93,7 +93,7 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
         let def = if has_fields_to_build {
             quote! {
-                #[derive(Clone, Debug, derives::ResetParams, derives::UpdateParams, derives::ZeroGrads)]
+                #[derive(Clone, Debug, derives::ResetParams, derives::UpdateParams, derives::ZeroGrads, derives::SaveSafeTensors, derives::LoadSafeTensors)]
                 pub struct #built_name #built_impl #built_where #fields
             }
         } else {
@@ -109,9 +109,27 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                     .push(parse_quote!(Dev: dfdx::prelude::Device<Elem>));
             }
             let (build_impl, _, _) = build_generics.split_for_impl();
-            let (_, built_ty, built_where) = built_generics.split_for_impl();
+            let (built_impl, built_ty, built_where) = built_generics.split_for_impl();
 
             quote! {
+                impl #built_impl basenn::SaveSafeTensors for #builder_name #built_ty #built_where {
+                    fn write_safetensors(
+                        &self,
+                        location: &str,
+                        tensors: &mut Vec<(String, safetensors::Dtype, Vec<usize>, Vec<u8>)>,
+                    ) {}
+                }
+
+                impl #built_impl basenn::LoadSafeTensors for #builder_name #built_ty #built_where {
+                    fn read_safetensors<'a>(
+                        &mut self,
+                        location: &str,
+                        tensors: &safetensors::SafeTensors<'a>,
+                    ) -> Result<(), safetensors::SafeTensorError> {
+                        Ok(())
+                    }
+                }
+
                 impl #build_impl basenn::ResetParams<Elem, Dev> for #builder_name #built_ty #built_where {
                     fn try_reset_params(&mut self) -> Result<(), Dev::Err> {
                         Ok(())
@@ -261,7 +279,7 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             where_clause
                                 .predicates
                                 .push(parse_quote!(#ty: basenn::BuildOnDevice<Elem, Dev>));
-                            quote_spanned!(f.span()=> #[module] #vis #name: <#ty as basenn::BuildOnDevice<Elem, Dev>>::Built,)
+                            quote_spanned!(f.span()=> #[module] #[serialize] #vis #name: <#ty as basenn::BuildOnDevice<Elem, Dev>>::Built,)
                         });
                         quote! { #(#fields)* }
                     }
@@ -272,7 +290,7 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             where_clause
                                 .predicates
                                 .push(parse_quote!(#ty: basenn::BuildOnDevice<Elem, Dev>));
-                            quote_spanned!(f.span()=> #[module] #vis <#ty as basenn::BuildOnDevice<Elem, Dev>>::Built,)
+                            quote_spanned!(f.span()=> #[module] #[serialize] #vis <#ty as basenn::BuildOnDevice<Elem, Dev>>::Built,)
                         });
                         quote! { #(#fields)* }
                     }
@@ -286,7 +304,7 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let (built_impl, _, built_where) = built_generics.split_for_impl();
 
         quote! {
-            #[derive(Clone, Debug, derives::ResetParams, derives::UpdateParams, derives::ZeroGrads)]
+            #[derive(Clone, Debug, derives::ResetParams, derives::UpdateParams, derives::ZeroGrads, derives::SaveSafeTensors, derives::LoadSafeTensors)]
             pub struct #built_name #built_impl #built_where {
                 #fields
             }
@@ -726,6 +744,145 @@ pub fn zero_grads(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         impl #impl_generics basenn::ZeroGrads<Elem, Dev> for #name #ty_generics #where_clause {
             fn try_zero_grads(&self, grads: &mut dfdx::prelude::Gradients<Elem, Dev>) -> Result<(), Dev::Err> {
                 #zero_grads
+                Ok(())
+            }
+        }
+    })
+}
+
+#[proc_macro_derive(SaveSafeTensors, attributes(serialize))]
+pub fn save_safetensors(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let mut input = parse_macro_input!(input as DeriveInput);
+
+    let name = input.ident;
+
+    let where_clause = input.generics.make_where_clause();
+    let save_fields = match &input.data {
+        Data::Struct(ref obj) => match obj.fields {
+            Fields::Named(ref fields) => {
+                let save_fields = fields.named.iter().map(|f| {
+                    let name = &f.ident;
+                    let ty = &f.ty;
+                    let name_str = name.as_ref().map(|n| n.to_string());
+                    if f.attrs
+                        .iter()
+                        .find(|a| a.path().is_ident("serialize"))
+                        .is_some()
+                    {
+                        where_clause
+                            .predicates
+                            .push(parse_quote!(#ty: basenn::SaveSafeTensors));
+                        quote_spanned!(f.span()=>self.#name.write_safetensors(&format!("{location}{}", #name_str), tensors);)
+                    } else {
+                        Default::default()
+                    }
+                });
+                quote! { #(#save_fields)* }
+            }
+            Fields::Unnamed(ref fields) => {
+                let save_fields = fields.unnamed.iter().enumerate().map(|(i, f)| {
+                    let index = Index::from(i);
+                    let ty = &f.ty;
+                    if f.attrs
+                        .iter()
+                        .find(|a| a.path().is_ident("serialize"))
+                        .is_some()
+                    {
+                        where_clause
+                            .predicates
+                            .push(parse_quote!(#ty: basenn::SaveSafeTensors));
+                        quote_spanned!(f.span()=>self.#index.write_safetensors(&format!("{location}{}", #index), tensors);)
+                    } else {
+                        Default::default()
+                    }
+                });
+                quote! { #(#save_fields)* }
+            }
+            Fields::Unit => Default::default(),
+        },
+        Data::Enum(_) => unimplemented!("SaveSafeTensors not implemented for enums."),
+        Data::Union(_) => unimplemented!("SaveSafeTensors not implemented for unions."),
+    };
+
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    proc_macro::TokenStream::from(quote! {
+        impl #impl_generics basenn::SaveSafeTensors for #name #ty_generics #where_clause {
+            fn write_safetensors(
+                &self,
+                location: &str,
+                tensors: &mut Vec<(String, ::safetensors::Dtype, Vec<usize>, Vec<u8>)>,
+            ) {
+                #save_fields
+            }
+        }
+    })
+}
+
+#[proc_macro_derive(LoadSafeTensors, attributes(serialize))]
+pub fn load_safetensors(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let mut input = parse_macro_input!(input as DeriveInput);
+
+    let name = input.ident;
+
+    let where_clause = input.generics.make_where_clause();
+    let load_fields = match &input.data {
+        Data::Struct(ref obj) => match obj.fields {
+            Fields::Named(ref fields) => {
+                let load_fields = fields.named.iter().map(|f| {
+                    let name = &f.ident;
+                    let ty = &f.ty;
+                    let name_str = name.as_ref().map(|n| n.to_string());
+                    if f.attrs
+                        .iter()
+                        .find(|a| a.path().is_ident("serialize"))
+                        .is_some()
+                    {
+                        where_clause
+                            .predicates
+                            .push(parse_quote!(#ty: basenn::LoadSafeTensors));
+                        quote_spanned!(f.span()=>self.#name.read_safetensors(&format!("{location}{}", #name_str), tensors)?;)
+                    } else {
+                        Default::default()
+                    }
+                });
+                quote! { #(#load_fields)* }
+            }
+            Fields::Unnamed(ref fields) => {
+                let load_fields = fields.unnamed.iter().enumerate().map(|(i, f)| {
+                    let index = Index::from(i);
+                    let ty = &f.ty;
+                    if f.attrs
+                        .iter()
+                        .find(|a| a.path().is_ident("serialize"))
+                        .is_some()
+                    {
+                        where_clause
+                            .predicates
+                            .push(parse_quote!(#ty: basenn::LoadSafeTensors));
+                        quote_spanned!(f.span()=>self.#index.read_safetensors(&format!("{location}{}", #index), tensors)?;)
+                    } else {
+                        Default::default()
+                    }
+                });
+                quote! { #(#load_fields)* }
+            }
+            Fields::Unit => Default::default(),
+        },
+        Data::Enum(_) => unimplemented!("LoadSafeTensors not implemented for enums."),
+        Data::Union(_) => unimplemented!("LoadSafeTensors not implemented for unions."),
+    };
+
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    proc_macro::TokenStream::from(quote! {
+        impl #impl_generics basenn::LoadSafeTensors for #name #ty_generics #where_clause {
+            fn read_safetensors<'a>(
+                &mut self,
+                location: &str,
+                tensors: &::safetensors::SafeTensors<'a>,
+            ) -> Result<(), ::safetensors::SafeTensorError> {
+                #load_fields
                 Ok(())
             }
         }

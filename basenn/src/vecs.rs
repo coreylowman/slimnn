@@ -41,6 +41,31 @@ impl<E: Dtype, D: Device<E>, T: crate::ZeroGrads<E, D>> crate::ZeroGrads<E, D> f
     }
 }
 
+impl<T: crate::SaveSafeTensors> crate::SaveSafeTensors for Vec<T> {
+    fn write_safetensors(
+        &self,
+        location: &str,
+        tensors: &mut Vec<(String, safetensors::Dtype, Vec<usize>, Vec<u8>)>,
+    ) {
+        for (i, t) in self.iter().enumerate() {
+            t.write_safetensors(&format!("{location}{i}."), tensors);
+        }
+    }
+}
+
+impl<T: crate::LoadSafeTensors> crate::LoadSafeTensors for Vec<T> {
+    fn read_safetensors<'a>(
+        &mut self,
+        location: &str,
+        tensors: &safetensors::SafeTensors<'a>,
+    ) -> Result<(), safetensors::SafeTensorError> {
+        for (i, t) in self.iter_mut().enumerate() {
+            t.read_safetensors(&format!("{location}{i}."), tensors)?;
+        }
+        Ok(())
+    }
+}
+
 impl<Input, T: crate::Module<Input, Output = Input>> crate::Module<Input> for Vec<T> {
     type Output = T::Output;
     type Error = T::Error;

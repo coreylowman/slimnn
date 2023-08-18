@@ -69,7 +69,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, UpdateParams, ZeroGrads)]
+#[derive(Debug, Clone, UpdateParams, ZeroGrads, SaveSafeTensors, LoadSafeTensors)]
 pub struct Conv2D<InChan, OutChan, KernelSize, Stride, Padding, Dilation, Groups, Elem, Dev>
 where
     InChan: std::ops::Div<Groups>,
@@ -85,6 +85,7 @@ where
     Dev: Device<Elem>,
 {
     #[param]
+    #[serialize]
     pub weight: Tensor<
         (
             OutChan,

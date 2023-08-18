@@ -18,12 +18,15 @@ impl<M: Dim, E: Dtype, D: Device<E>> crate::BuildOnDevice<E, D> for LayerNorm1DC
     }
 }
 
-#[derive(Clone, Debug, UpdateParams, ZeroGrads)]
+#[derive(Clone, Debug, UpdateParams, ZeroGrads, SaveSafeTensors, LoadSafeTensors)]
 pub struct LayerNorm1D<M: Dim, Elem: Dtype, Dev: Device<Elem>> {
     #[param]
+    #[serialize]
     pub gamma: Tensor<(M,), Elem, Dev>,
     #[param]
+    #[serialize]
     pub beta: Tensor<(M,), Elem, Dev>,
+    #[serialize]
     pub epsilon: f64,
 }
 

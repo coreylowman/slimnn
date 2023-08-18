@@ -5,9 +5,19 @@ use dfdx::{
     tensor_ops::{Device, TryAdd},
 };
 
-#[derive(Default, Clone, Debug, ResetParams, ZeroGrads, UpdateParams)]
-pub struct GeneralizedAdd<T, U>(#[module] pub T, #[module] pub U);
+#[derive(
+    Default, Clone, Debug, ResetParams, ZeroGrads, UpdateParams, LoadSafeTensors, SaveSafeTensors,
+)]
+pub struct GeneralizedAdd<T, U>(
+    #[module]
+    #[serialize]
+    pub T,
+    #[module]
+    #[serialize]
+    pub U,
+);
 
+// TODO derive
 impl<E: Dtype, D: Device<E>, T: basenn::BuildOnDevice<E, D>, U: basenn::BuildOnDevice<E, D>>
     basenn::BuildOnDevice<E, D> for GeneralizedAdd<T, U>
 {
