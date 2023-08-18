@@ -4,6 +4,7 @@ use dfdx::shapes::{Const, Dim};
 use dfdx_nn_derives::Sequential;
 
 #[derive(Default, Debug, Clone, Copy, Sequential)]
+#[built(Linear)]
 pub struct LinearConfig<I: Dim, O: Dim> {
     pub matmul: MatMulConfig<I, O>,
     pub bias: Bias1DConfig<O>,
