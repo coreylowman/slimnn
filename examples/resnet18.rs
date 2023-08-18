@@ -45,7 +45,8 @@ fn main() {
     }
 
     #[derive(Default, Clone, Sequential)]
-    pub struct Resnet18<const NUM_CLASSES: usize> {
+    #[built(Resnet18)]
+    pub struct Resnet18Config<const NUM_CLASSES: usize> {
         head: Head,
         l1: (BasicBlock<64>, ReLU, BasicBlock<64>, ReLU),
         l2: (Downsample<64, 128>, ReLU, BasicBlock<128>, ReLU),
@@ -58,8 +59,8 @@ fn main() {
         use dfdx::prelude::*;
 
         let dev = AutoDevice::default();
-        let arch = Resnet18::<1000>::default();
-        let m = dev.build_module_ext::<f32>(arch);
+        let arch = Resnet18Config::<1000>::default();
+        let m: Resnet18<1000, f32, AutoDevice> = dev.build_module_ext::<f32>(arch);
 
         let x: Tensor<Rank3<3, 224, 224>, f32, _> = dev.sample_normal();
         let _: Tensor<Rank1<1000>, f32, _> = m.forward(x.clone());
