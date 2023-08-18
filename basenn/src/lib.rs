@@ -149,66 +149,6 @@ pub trait SaveSafeTensors {
     );
 }
 
-impl<S: Shape, E: Dtype, D: Device<E>, T> SaveSafeTensors for Tensor<S, E, D, T> {
-    fn write_safetensors(
-        &self,
-        location: &str,
-        tensors: &mut Vec<(String, safetensors::Dtype, Vec<usize>, Vec<u8>)>,
-    ) {
-        tensors.push((
-            location.to_string(),
-            <E as dfdx::dtypes::SafeTensorsDtype>::DTYPE,
-            self.shape().concrete().into(),
-            self.as_vec().iter().flat_map(|e| e.to_le_bytes()).collect(),
-        ));
-    }
-}
-
-impl SaveSafeTensors for bool {
-    fn write_safetensors(
-        &self,
-        location: &str,
-        tensors: &mut Vec<(String, safetensors::Dtype, Vec<usize>, Vec<u8>)>,
-    ) {
-        tensors.push((
-            location.to_string(),
-            safetensors::Dtype::BOOL,
-            Vec::new(),
-            vec![*self as u8],
-        ));
-    }
-}
-
-impl SaveSafeTensors for f32 {
-    fn write_safetensors(
-        &self,
-        location: &str,
-        tensors: &mut Vec<(String, safetensors::Dtype, Vec<usize>, Vec<u8>)>,
-    ) {
-        tensors.push((
-            location.to_string(),
-            safetensors::Dtype::F32,
-            Vec::new(),
-            self.to_le_bytes().to_vec(),
-        ));
-    }
-}
-
-impl SaveSafeTensors for f64 {
-    fn write_safetensors(
-        &self,
-        location: &str,
-        tensors: &mut Vec<(String, safetensors::Dtype, Vec<usize>, Vec<u8>)>,
-    ) {
-        tensors.push((
-            location.to_string(),
-            safetensors::Dtype::F64,
-            Vec::new(),
-            self.to_le_bytes().to_vec(),
-        ));
-    }
-}
-
 pub trait LoadSafeTensors {
     fn load_safetensors<P: AsRef<std::path::Path>>(
         &mut self,
@@ -237,41 +177,69 @@ impl<S: Shape, E: Dtype, D: Device<E>, T> LoadSafeTensors for Tensor<S, E, D, T>
     }
 }
 
-impl LoadSafeTensors for bool {
-    fn read_safetensors<'a>(
-        &mut self,
+impl<S: Shape, E: Dtype, D: Device<E>, T> SaveSafeTensors for Tensor<S, E, D, T> {
+    fn write_safetensors(
+        &self,
         location: &str,
-        tensors: &safetensors::SafeTensors<'a>,
-    ) -> Result<(), safetensors::SafeTensorError> {
-        let view = tensors.tensor(location)?;
-        *self = view.data()[0] != 0;
-        Ok(())
+        tensors: &mut Vec<(String, safetensors::Dtype, Vec<usize>, Vec<u8>)>,
+    ) {
+        tensors.push((
+            location.to_string(),
+            <E as dfdx::dtypes::SafeTensorsDtype>::DTYPE,
+            self.shape().concrete().into(),
+            self.as_vec().iter().flat_map(|e| e.to_le_bytes()).collect(),
+        ));
     }
 }
 
-impl LoadSafeTensors for f32 {
-    fn read_safetensors<'a>(
-        &mut self,
-        location: &str,
-        tensors: &safetensors::SafeTensors<'a>,
-    ) -> Result<(), safetensors::SafeTensorError> {
-        let view = tensors.tensor(location)?;
-        *self = Self::from_le_bytes(view.data().try_into().unwrap());
-        Ok(())
-    }
+macro_rules! unit_safetensors {
+    ($Ty:ty) => {
+        impl SaveSafeTensors for $Ty {
+            fn write_safetensors(
+                &self,
+                location: &str,
+                tensors: &mut Vec<(String, safetensors::Dtype, Vec<usize>, Vec<u8>)>,
+            ) {
+                #[allow(unused_imports)]
+                use dfdx::dtypes::ToLeBytes;
+                tensors.push((
+                    location.to_string(),
+                    <$Ty as dfdx::dtypes::SafeTensorsDtype>::DTYPE,
+                    Vec::new(),
+                    self.to_le_bytes().to_vec(),
+                ));
+            }
+        }
+
+        impl LoadSafeTensors for $Ty {
+            fn read_safetensors<'a>(
+                &mut self,
+                location: &str,
+                tensors: &safetensors::SafeTensors<'a>,
+            ) -> Result<(), safetensors::SafeTensorError> {
+                #[allow(unused_imports)]
+                use dfdx::dtypes::FromLeBytes;
+                let view = tensors.tensor(location)?;
+                *self = Self::from_le_bytes(view.data().try_into().unwrap());
+                Ok(())
+            }
+        }
+    };
 }
 
-impl LoadSafeTensors for f64 {
-    fn read_safetensors<'a>(
-        &mut self,
-        location: &str,
-        tensors: &safetensors::SafeTensors<'a>,
-    ) -> Result<(), safetensors::SafeTensorError> {
-        let view = tensors.tensor(location)?;
-        *self = Self::from_le_bytes(view.data().try_into().unwrap());
-        Ok(())
-    }
-}
+unit_safetensors!(bool);
+unit_safetensors!(f32);
+unit_safetensors!(f64);
+unit_safetensors!(u8);
+unit_safetensors!(u16);
+unit_safetensors!(u32);
+unit_safetensors!(u64);
+unit_safetensors!(i8);
+unit_safetensors!(i16);
+unit_safetensors!(i32);
+unit_safetensors!(i64);
+unit_safetensors!(isize);
+unit_safetensors!(usize);
 
 pub trait BuildModuleExt<M>: Sized {
     fn build_module_ext<E: Dtype>(&self, m: M) -> M::Built
