@@ -3,7 +3,7 @@ use dfdx::{
     tensor::Tensor,
     tensor_ops::{Device, TryConv2D},
 };
-use nn_derives::*;
+use dfdx_nn_derives::*;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Conv2DConfig<

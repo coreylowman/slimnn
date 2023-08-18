@@ -2,7 +2,7 @@ use dfdx::{
     prelude::{Device, Dim, Dtype, Tape, Tensor},
     tensor_ops::MeanTo,
 };
-use nn_derives::*;
+use dfdx_nn_derives::*;
 
 #[derive(Default, Debug, Clone, Copy, CustomModule)]
 pub struct AvgPoolGlobal;

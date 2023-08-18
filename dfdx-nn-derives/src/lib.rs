@@ -37,8 +37,8 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                                 has_fields_to_build = true;
                                 where_clause
                                     .predicates
-                                    .push(parse_quote!(#ty: nn_core::BuildOnDevice<Elem, Dev>));
-                                quote_spanned!(f.span()=> #[module] #[serialize] #vis #name: <#ty as nn_core::BuildOnDevice<Elem, Dev>>::Built,)
+                                    .push(parse_quote!(#ty: dfdx_nn_core::BuildOnDevice<Elem, Dev>));
+                                quote_spanned!(f.span()=> #[module] #[serialize] #vis #name: <#ty as dfdx_nn_core::BuildOnDevice<Elem, Dev>>::Built,)
                             } else {
                                 quote_spanned!(f.span()=> #vis #name: #ty,)
                             }
@@ -53,8 +53,8 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                                 has_fields_to_build = true;
                                 where_clause
                                     .predicates
-                                    .push(parse_quote!(#ty: nn_core::BuildOnDevice<Elem, Dev>));
-                                quote_spanned!(f.span()=> #[module] #[serialize] #vis <#ty as nn_core::BuildOnDevice<Elem, Dev>>::Built,)
+                                    .push(parse_quote!(#ty: dfdx_nn_core::BuildOnDevice<Elem, Dev>));
+                                quote_spanned!(f.span()=> #[module] #[serialize] #vis <#ty as dfdx_nn_core::BuildOnDevice<Elem, Dev>>::Built,)
                             } else {
                                 quote_spanned!(f.span()=> #vis #ty,)
                             }
@@ -91,7 +91,7 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
         let def = if has_fields_to_build {
             quote! {
-                #[derive(Clone, Debug, nn_derives::ResetParams, nn_derives::UpdateParams, nn_derives::ZeroGrads, nn_derives::SaveSafeTensors, nn_derives::LoadSafeTensors)]
+                #[derive(Clone, Debug, dfdx_nn_derives::ResetParams, dfdx_nn_derives::UpdateParams, dfdx_nn_derives::ZeroGrads, dfdx_nn_derives::SaveSafeTensors, dfdx_nn_derives::LoadSafeTensors)]
                 pub struct #built_name #built_impl #built_where #fields
             }
         } else {
@@ -110,7 +110,7 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             let (built_impl, built_ty, built_where) = built_generics.split_for_impl();
 
             quote! {
-                impl #built_impl nn_core::SaveSafeTensors for #builder_name #built_ty #built_where {
+                impl #built_impl dfdx_nn_core::SaveSafeTensors for #builder_name #built_ty #built_where {
                     fn write_safetensors(
                         &self,
                         location: &str,
@@ -118,7 +118,7 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                     ) {}
                 }
 
-                impl #built_impl nn_core::LoadSafeTensors for #builder_name #built_ty #built_where {
+                impl #built_impl dfdx_nn_core::LoadSafeTensors for #builder_name #built_ty #built_where {
                     fn read_safetensors<'a>(
                         &mut self,
                         location: &str,
@@ -128,14 +128,14 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                     }
                 }
 
-                impl #build_impl nn_core::ResetParams<Elem, Dev> for #builder_name #built_ty #built_where {
+                impl #build_impl dfdx_nn_core::ResetParams<Elem, Dev> for #builder_name #built_ty #built_where {
                     fn try_reset_params(&mut self) -> Result<(), Dev::Err> {
                         Ok(())
                     }
                 }
 
-                impl #build_impl nn_core::UpdateParams<Elem, Dev> for #builder_name #built_ty #built_where {
-                    fn try_update_params<M, Optim: nn_core::Optimizer<M, Elem, Dev>>(
+                impl #build_impl dfdx_nn_core::UpdateParams<Elem, Dev> for #builder_name #built_ty #built_where {
+                    fn try_update_params<M, Optim: dfdx_nn_core::Optimizer<M, Elem, Dev>>(
                         &mut self,
                         optimizer: &mut Optim,
                         gradients: &dfdx::tensor::Gradients<Elem, Dev>,
@@ -145,7 +145,7 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                     }
                 }
 
-                impl #build_impl nn_core::ZeroGrads<Elem, Dev> for #builder_name #built_ty #built_where {
+                impl #build_impl dfdx_nn_core::ZeroGrads<Elem, Dev> for #builder_name #built_ty #built_where {
                     fn try_zero_grads(&self, grads: &mut dfdx::tensor::Gradients<Elem, Dev>) -> Result<(), Dev::Err> {
                         Ok(())
                     }
@@ -182,7 +182,7 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                         }
                     });
                     quote! {
-                        impl #build_impl nn_core::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
+                        impl #build_impl dfdx_nn_core::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
                             type Built = #built_name #built_ty;
                             fn try_build_on_device(&self, device: &Dev) -> Result<Self::Built, Dev::Err> {
                                 let built = #built_name { #(#recurse)* };
@@ -201,7 +201,7 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                         }
                     });
                     quote! {
-                        impl #build_impl nn_core::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
+                        impl #build_impl dfdx_nn_core::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
                             type Built = #built_name #built_ty;
                             fn try_build_on_device(&self, device: &Dev) -> Result<Self::Built, Dev::Err> {
                                 let built = #built_name(#(#recurse)*);
@@ -212,7 +212,7 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                 }
                 Fields::Unit => {
                     quote! {
-                        impl #build_impl nn_core::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
+                        impl #build_impl dfdx_nn_core::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
                             type Built = #built_name #built_ty;
                             fn try_build_on_device(&self, device: &Dev) -> Result<Self::Built, Dev::Err> {
                                 Ok(#built_name)
@@ -268,8 +268,8 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             let vis = &f.vis;
                             where_clause
                                 .predicates
-                                .push(parse_quote!(#ty: nn_core::BuildOnDevice<Elem, Dev>));
-                            quote_spanned!(f.span()=> #[module] #[serialize] #vis #name: <#ty as nn_core::BuildOnDevice<Elem, Dev>>::Built,)
+                                .push(parse_quote!(#ty: dfdx_nn_core::BuildOnDevice<Elem, Dev>));
+                            quote_spanned!(f.span()=> #[module] #[serialize] #vis #name: <#ty as dfdx_nn_core::BuildOnDevice<Elem, Dev>>::Built,)
                         });
                         quote! { #(#fields)* }
                     }
@@ -279,8 +279,8 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             let vis = &f.vis;
                             where_clause
                                 .predicates
-                                .push(parse_quote!(#ty: nn_core::BuildOnDevice<Elem, Dev>));
-                            quote_spanned!(f.span()=> #[module] #[serialize] #vis <#ty as nn_core::BuildOnDevice<Elem, Dev>>::Built,)
+                                .push(parse_quote!(#ty: dfdx_nn_core::BuildOnDevice<Elem, Dev>));
+                            quote_spanned!(f.span()=> #[module] #[serialize] #vis <#ty as dfdx_nn_core::BuildOnDevice<Elem, Dev>>::Built,)
                         });
                         quote! { #(#fields)* }
                     }
@@ -294,7 +294,7 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let (built_impl, _, built_where) = built_generics.split_for_impl();
 
         quote! {
-            #[derive(Clone, Debug, nn_derives::ResetParams, nn_derives::UpdateParams, nn_derives::ZeroGrads, nn_derives::SaveSafeTensors, nn_derives::LoadSafeTensors)]
+            #[derive(Clone, Debug, dfdx_nn_derives::ResetParams, dfdx_nn_derives::UpdateParams, dfdx_nn_derives::ZeroGrads, dfdx_nn_derives::SaveSafeTensors, dfdx_nn_derives::LoadSafeTensors)]
             pub struct #built_name #built_impl #built_where {
                 #fields
             }
@@ -313,7 +313,7 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         quote_spanned! {f.span()=> #name: self.#name.try_build_on_device(device)?, }
                     });
                     quote! {
-                        impl #built_impl nn_core::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
+                        impl #built_impl dfdx_nn_core::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
                             type Built = #built_name #built_ty;
                             fn try_build_on_device(&self, device: &Dev) -> Result<Self::Built, Dev::Err> {
                                 let built = #built_name {
@@ -330,7 +330,7 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         quote_spanned! {f.span()=> self.#index.try_build_on_device(device)?, }
                     });
                     quote! {
-                        impl #built_impl nn_core::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
+                        impl #built_impl dfdx_nn_core::BuildOnDevice<Elem, Dev> for #builder_name #builder_ty #built_where {
                             type Built = #built_name #built_ty;
                             fn try_build_on_device(&self, device: &Dev) -> Result<Self::Built, Dev::Err> {
                                 #built_name(
@@ -361,11 +361,11 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         let ty = &f.ty;
                         where_clause
                             .predicates
-                            .push(parse_quote!(#ty: nn_core::BuildOnDevice<Elem, Dev>));
+                            .push(parse_quote!(#ty: dfdx_nn_core::BuildOnDevice<Elem, Dev>));
                         where_clause
                             .predicates
-                            .push(parse_quote!(<#ty as nn_core::BuildOnDevice<Elem, Dev>>::Built: nn_core::Module<#last_ty, Error = #err>));
-                        last_ty = parse_quote!(<<#ty as nn_core::BuildOnDevice<Elem, Dev>>::Built as nn_core::Module<#last_ty>>::Output);
+                            .push(parse_quote!(<#ty as dfdx_nn_core::BuildOnDevice<Elem, Dev>>::Built: dfdx_nn_core::Module<#last_ty, Error = #err>));
+                        last_ty = parse_quote!(<<#ty as dfdx_nn_core::BuildOnDevice<Elem, Dev>>::Built as dfdx_nn_core::Module<#last_ty>>::Output);
                     });
                 }
                 Fields::Unnamed(ref fields) => {
@@ -373,11 +373,11 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         let ty = &f.ty;
                         where_clause
                             .predicates
-                            .push(parse_quote!(#ty: nn_core::BuildOnDevice<Elem, Dev>));
+                            .push(parse_quote!(#ty: dfdx_nn_core::BuildOnDevice<Elem, Dev>));
                         where_clause
                             .predicates
-                            .push(parse_quote!(<#ty as nn_core::BuildOnDevice<Elem, Dev>>::Built: nn_core::Module<#last_ty, Error = #err>));
-                        last_ty = parse_quote!(<<#ty as nn_core::BuildOnDevice<Elem, Dev>>::Built as nn_core::Module<#last_ty>>::Output);
+                            .push(parse_quote!(<#ty as dfdx_nn_core::BuildOnDevice<Elem, Dev>>::Built: dfdx_nn_core::Module<#last_ty, Error = #err>));
+                        last_ty = parse_quote!(<<#ty as dfdx_nn_core::BuildOnDevice<Elem, Dev>>::Built as dfdx_nn_core::Module<#last_ty>>::Output);
                     });
                 }
                 Fields::Unit => {}
@@ -414,7 +414,7 @@ pub fn sequential(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let (module_impl, _, module_where) = module_generics.split_for_impl();
 
         quote! {
-            impl #module_impl nn_core::Module<Input> for #built_name #built_ty #module_where {
+            impl #module_impl dfdx_nn_core::Module<Input> for #built_name #built_ty #module_where {
                 type Output = #output_ty;
                 type Error = #err;
                 fn try_forward(&self, x: Input) -> Result<Self::Output, Self::Error> {
@@ -477,7 +477,7 @@ pub fn reset_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     if has_attr!(f, "module") {
                         where_clause
                             .predicates
-                            .push(parse_quote!(#ty: nn_core::ResetParams<Elem, Dev>));
+                            .push(parse_quote!(#ty: dfdx_nn_core::ResetParams<Elem, Dev>));
                         quote_spanned!(f.span()=>self.#name.try_reset_params()?;)
                     } else {
                         Default::default()
@@ -492,7 +492,7 @@ pub fn reset_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     if has_attr!(f, "module") {
                         where_clause
                             .predicates
-                            .push(parse_quote!(#ty: nn_core::ResetParams<Elem, Dev>));
+                            .push(parse_quote!(#ty: dfdx_nn_core::ResetParams<Elem, Dev>));
                         quote_spanned!(f.span()=>self.#index.try_reset_params()?;)
                     } else {
                         Default::default()
@@ -510,7 +510,7 @@ pub fn reset_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let (_, ty_generics, where_clause) = input.generics.split_for_impl();
 
     proc_macro::TokenStream::from(quote! {
-        impl #impl_generics nn_core::ResetParams<Elem, Dev> for #name #ty_generics #where_clause {
+        impl #impl_generics dfdx_nn_core::ResetParams<Elem, Dev> for #name #ty_generics #where_clause {
             fn try_reset_params(&mut self) -> Result<(), Dev::Err> {
                 #resets
                 Ok(())
@@ -564,7 +564,7 @@ pub fn update_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                     if has_attr!(f, "module") {
                         where_clause
                             .predicates
-                            .push(parse_quote!(#ty: nn_core::UpdateParams<Elem, Dev>));
+                            .push(parse_quote!(#ty: dfdx_nn_core::UpdateParams<Elem, Dev>));
                         quote_spanned!(f.span()=>self.#name.try_update_params(optimizer, gradients, missing_tensors)?;)
                     } else if has_attr!(f, "param") {
                         quote_spanned!(f.span()=>optimizer.update_tensor(&mut self.#name, gradients, missing_tensors)?;)
@@ -581,7 +581,7 @@ pub fn update_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                     if has_attr!(f, "module") {
                         where_clause
                             .predicates
-                            .push(parse_quote!(#ty: nn_core::UpdateParams<Elem, Dev>));
+                            .push(parse_quote!(#ty: dfdx_nn_core::UpdateParams<Elem, Dev>));
                         quote_spanned!(f.span()=>self.#index.try_update_params(optimizer, gradients, missing_tensors)?;)
                     } else if has_attr!(f, "param") {
                         quote_spanned!(f.span()=>optimizer.update_tensor(&mut self.#index, gradients, missing_tensors)?;)
@@ -601,8 +601,8 @@ pub fn update_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     let (_, ty_generics, where_clause) = input.generics.split_for_impl();
 
     proc_macro::TokenStream::from(quote! {
-        impl #impl_generics nn_core::UpdateParams<Elem, Dev> for #struct_name #ty_generics #where_clause {
-            fn try_update_params<_Model, Optim: nn_core::Optimizer<_Model, Elem, Dev>>(
+        impl #impl_generics dfdx_nn_core::UpdateParams<Elem, Dev> for #struct_name #ty_generics #where_clause {
+            fn try_update_params<_Model, Optim: dfdx_nn_core::Optimizer<_Model, Elem, Dev>>(
                 &mut self,
                 optimizer: &mut Optim,
                 gradients: &dfdx::tensor::Gradients<Elem, Dev>,
@@ -661,7 +661,7 @@ pub fn zero_grads(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     {
                         where_clause
                             .predicates
-                            .push(parse_quote!(#ty: nn_core::ZeroGrads<Elem, Dev>));
+                            .push(parse_quote!(#ty: dfdx_nn_core::ZeroGrads<Elem, Dev>));
                         quote_spanned!(f.span()=>self.#name.try_zero_grads(grads)?;)
                     } else if has_attr!(f, "param")
                     {
@@ -680,7 +680,7 @@ pub fn zero_grads(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     {
                         where_clause
                             .predicates
-                            .push(parse_quote!(#ty: nn_core::ZeroGrads<Elem, Dev>));
+                            .push(parse_quote!(#ty: dfdx_nn_core::ZeroGrads<Elem, Dev>));
                         quote_spanned!(f.span()=>self.#index.try_zero_grads(grads)?;)
                     } else if has_attr!(f, "param")
                     {
@@ -701,7 +701,7 @@ pub fn zero_grads(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let (_, ty_generics, where_clause) = input.generics.split_for_impl();
 
     proc_macro::TokenStream::from(quote! {
-        impl #impl_generics nn_core::ZeroGrads<Elem, Dev> for #name #ty_generics #where_clause {
+        impl #impl_generics dfdx_nn_core::ZeroGrads<Elem, Dev> for #name #ty_generics #where_clause {
             fn try_zero_grads(&self, grads: &mut dfdx::prelude::Gradients<Elem, Dev>) -> Result<(), Dev::Err> {
                 #zero_grads
                 Ok(())
@@ -728,7 +728,7 @@ pub fn save_safetensors(input: proc_macro::TokenStream) -> proc_macro::TokenStre
                     {
                         where_clause
                             .predicates
-                            .push(parse_quote!(#ty: nn_core::SaveSafeTensors));
+                            .push(parse_quote!(#ty: dfdx_nn_core::SaveSafeTensors));
                         quote_spanned!(f.span()=>self.#name.write_safetensors(&format!("{location}{}", #name_str), tensors);)
                     } else {
                         Default::default()
@@ -744,7 +744,7 @@ pub fn save_safetensors(input: proc_macro::TokenStream) -> proc_macro::TokenStre
                     {
                         where_clause
                             .predicates
-                            .push(parse_quote!(#ty: nn_core::SaveSafeTensors));
+                            .push(parse_quote!(#ty: dfdx_nn_core::SaveSafeTensors));
                         quote_spanned!(f.span()=>self.#index.write_safetensors(&format!("{location}{}", #index), tensors);)
                     } else {
                         Default::default()
@@ -761,7 +761,7 @@ pub fn save_safetensors(input: proc_macro::TokenStream) -> proc_macro::TokenStre
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     proc_macro::TokenStream::from(quote! {
-        impl #impl_generics nn_core::SaveSafeTensors for #name #ty_generics #where_clause {
+        impl #impl_generics dfdx_nn_core::SaveSafeTensors for #name #ty_generics #where_clause {
             fn write_safetensors(
                 &self,
                 location: &str,
@@ -790,7 +790,7 @@ pub fn load_safetensors(input: proc_macro::TokenStream) -> proc_macro::TokenStre
                     if has_attr!(f, "serialize") {
                         where_clause
                             .predicates
-                            .push(parse_quote!(#ty: nn_core::LoadSafeTensors));
+                            .push(parse_quote!(#ty: dfdx_nn_core::LoadSafeTensors));
                         quote_spanned!(f.span()=>self.#name.read_safetensors(&format!("{location}{}", #name_str), tensors)?;)
                     } else {
                         Default::default()
@@ -805,7 +805,7 @@ pub fn load_safetensors(input: proc_macro::TokenStream) -> proc_macro::TokenStre
                     if has_attr!(f, "serialize") {
                         where_clause
                             .predicates
-                            .push(parse_quote!(#ty: nn_core::LoadSafeTensors));
+                            .push(parse_quote!(#ty: dfdx_nn_core::LoadSafeTensors));
                         quote_spanned!(f.span()=>self.#index.read_safetensors(&format!("{location}{}", #index), tensors)?;)
                     } else {
                         Default::default()
@@ -822,7 +822,7 @@ pub fn load_safetensors(input: proc_macro::TokenStream) -> proc_macro::TokenStre
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     proc_macro::TokenStream::from(quote! {
-        impl #impl_generics nn_core::LoadSafeTensors for #name #ty_generics #where_clause {
+        impl #impl_generics dfdx_nn_core::LoadSafeTensors for #name #ty_generics #where_clause {
             fn read_safetensors<'a>(
                 &mut self,
                 location: &str,

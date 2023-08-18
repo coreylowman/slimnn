@@ -5,8 +5,8 @@ use dfdx::{
     tensor::{Tape, Tensor},
     tensor_ops::{Device, ReshapeTo},
 };
-use nn_core::Module;
-use nn_derives::CustomModule;
+use dfdx_nn_core::Module;
+use dfdx_nn_derives::CustomModule;
 
 #[derive(Debug, Default, Clone, Copy, CustomModule)]
 pub struct Flatten2D;

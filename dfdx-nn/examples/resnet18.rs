@@ -1,6 +1,6 @@
 #![feature(generic_const_exprs)]
 
-use slimnn::{
+use dfdx_nn::{
     avg_pool_global::AvgPoolGlobal, batch_norm2d::BatchNorm2DConstConfig,
     conv2d::Conv2DConstConfig, generalized_add::GeneralizedAdd, linear::LinearConstConfig,
     max_pool_2d::MaxPool2DConst, relu::ReLU, residual_add::ResidualAdd, *,

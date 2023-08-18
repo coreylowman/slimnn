@@ -1,5 +1,5 @@
 use dfdx::prelude::*;
-use nn_derives::*;
+use dfdx_nn_derives::*;
 
 #[derive(Default, Clone, Copy, Debug)]
 #[repr(transparent)]

@@ -18,5 +18,5 @@ pub mod residual_add;
 pub mod sgd;
 pub mod transformer;
 
-pub use nn_core::*;
-pub use nn_derives::*;
+pub use dfdx_nn_core::*;
+pub use dfdx_nn_derives::*;

@@ -1,5 +1,5 @@
 [package]
-name = "nn-derives"
+name = "dfdx-nn-derives"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,7 +9,7 @@ edition = "2021"
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "2", features = ["extra-traits"] }
-nn-core = { path = "../nn-core" }
+dfdx-nn-core = { path = "../dfdx-nn-core" }
 
 [lib]
 proc-macro = true

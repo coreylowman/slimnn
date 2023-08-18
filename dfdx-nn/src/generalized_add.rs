@@ -3,7 +3,7 @@ use dfdx::{
     tensor::WithEmptyTape,
     tensor_ops::{Device, TryAdd},
 };
-use nn_derives::*;
+use dfdx_nn_derives::*;
 
 #[derive(
     Default, Clone, Debug, ResetParams, ZeroGrads, UpdateParams, LoadSafeTensors, SaveSafeTensors,
@@ -18,8 +18,12 @@ pub struct GeneralizedAdd<T, U>(
 );
 
 // TODO derive
-impl<E: Dtype, D: Device<E>, T: nn_core::BuildOnDevice<E, D>, U: nn_core::BuildOnDevice<E, D>>
-    nn_core::BuildOnDevice<E, D> for GeneralizedAdd<T, U>
+impl<
+        E: Dtype,
+        D: Device<E>,
+        T: dfdx_nn_core::BuildOnDevice<E, D>,
+        U: dfdx_nn_core::BuildOnDevice<E, D>,
+    > dfdx_nn_core::BuildOnDevice<E, D> for GeneralizedAdd<T, U>
 {
     type Built = GeneralizedAdd<T::Built, U::Built>;
     fn try_build_on_device(&self, device: &D) -> Result<Self::Built, <D>::Err> {
@@ -29,8 +33,11 @@ impl<E: Dtype, D: Device<E>, T: nn_core::BuildOnDevice<E, D>, U: nn_core::BuildO
     }
 }
 
-impl<X: WithEmptyTape, T: nn_core::Module<X>, U: nn_core::Module<X, Error = T::Error>>
-    nn_core::Module<X> for GeneralizedAdd<T, U>
+impl<
+        X: WithEmptyTape,
+        T: dfdx_nn_core::Module<X>,
+        U: dfdx_nn_core::Module<X, Error = T::Error>,
+    > dfdx_nn_core::Module<X> for GeneralizedAdd<T, U>
 where
     T::Output: TryAdd<U::Output, Err = T::Error>,
 {

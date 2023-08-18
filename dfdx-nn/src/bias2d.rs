@@ -1,11 +1,11 @@
-use nn_core::*;
+use dfdx_nn_core::*;
 
 use dfdx::{
     prelude::{Device, Dim, Dtype, Tape, Tensor},
     shapes::Const,
     tensor_ops::{BroadcastTo, TryAdd},
 };
-use nn_derives::*;
+use dfdx_nn_derives::*;
 
 #[derive(Default, Clone, Copy, Debug)]
 #[repr(transparent)]

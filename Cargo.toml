@@ -1,20 +1,7 @@
 [workspace]
+members = ["dfdx-nn-core", "dfdx-nn-derives", "dfdx-nn"]
+resolver = "2"
 
 [workspace.dependencies]
 dfdx = { git = "https://github.com/coreylowman/dfdx.git", features = ["nightly", "safetensors"] }
 safetensors = { version = "0.3", default-features = false }
-
-[package]
-name = "slimnn"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-nn-core = { path = "./nn-core" }
-nn-derives = { path = "./nn-derives" }
-dfdx = { workspace = true }
-safetensors = { workspace = true}
-num-traits = "0.2.15"
-rand_distr = "0.4.3"

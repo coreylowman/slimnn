@@ -1,7 +1,7 @@
 use crate::{bias1d::Bias1DConfig, matmul::MatMulConfig};
 
 use dfdx::shapes::{Const, Dim};
-use nn_derives::Sequential;
+use dfdx_nn_derives::Sequential;
 
 #[derive(Default, Debug, Clone, Copy, Sequential)]
 pub struct LinearConfig<I: Dim, O: Dim> {

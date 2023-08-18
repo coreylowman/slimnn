@@ -1,6 +1,6 @@
 use dfdx::prelude::{Device, Dtype, Shape, Tape, Tensor};
-use nn_core::Module;
-use nn_derives::CustomModule;
+use dfdx_nn_core::Module;
+use dfdx_nn_derives::CustomModule;
 
 #[derive(Default, Debug, Clone, Copy, CustomModule)]
 pub struct ReLU;

@@ -21,7 +21,7 @@ impl<M, E: Dtype, D: Storage<E>> Sgd<M, E, D> {
     }
 }
 
-impl<M, E: Dtype, D: Device<E>> nn_core::Optimizer<M, E, D> for Sgd<M, E, D> {
+impl<M, E: Dtype, D: Device<E>> dfdx_nn_core::Optimizer<M, E, D> for Sgd<M, E, D> {
     fn update_tensor<S: Shape>(
         &mut self,
         t: &mut Tensor<S, E, D>,

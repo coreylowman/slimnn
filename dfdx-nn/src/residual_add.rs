@@ -3,8 +3,8 @@ use dfdx::{
     tensor::WithEmptyTape,
     tensor_ops::{Device, TryAdd},
 };
-use nn_core::BuildOnDevice;
-use nn_derives::*;
+use dfdx_nn_core::BuildOnDevice;
+use dfdx_nn_derives::*;
 
 use crate::Module;
 

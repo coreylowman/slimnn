@@ -1,6 +1,6 @@
 use dfdx::shapes::Const;
-use nn_core::{BuildModuleExt, Module};
-use slimnn::{linear::LinearConfig, relu::ReLU, *};
+use dfdx_nn::{linear::LinearConfig, relu::ReLU, *};
+use dfdx_nn_core::{BuildModuleExt, Module};
 
 mod arch {
     use super::*;
@@ -20,9 +20,9 @@ fn main() {
     let dev: Cpu = Default::default();
 
     let structure = arch::MixedMlpConfig {
-        l1: slimnn::linear::LinearConfig::new(Const, 5),
+        l1: dfdx_nn::linear::LinearConfig::new(Const, 5),
         act1: Default::default(),
-        l2: slimnn::linear::LinearConfig::new(5, Const),
+        l2: dfdx_nn::linear::LinearConfig::new(5, Const),
         act2: Default::default(),
     };
     let module: arch::MixedMlp<f32, Cpu> = dev.build_module_ext::<f32>(structure);
