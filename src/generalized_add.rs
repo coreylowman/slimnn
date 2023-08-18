@@ -1,9 +1,9 @@
-use derives::*;
 use dfdx::{
     shapes::Dtype,
     tensor::WithEmptyTape,
     tensor_ops::{Device, TryAdd},
 };
+use nn_derives::*;
 
 #[derive(
     Default, Clone, Debug, ResetParams, ZeroGrads, UpdateParams, LoadSafeTensors, SaveSafeTensors,
@@ -18,8 +18,8 @@ pub struct GeneralizedAdd<T, U>(
 );
 
 // TODO derive
-impl<E: Dtype, D: Device<E>, T: basenn::BuildOnDevice<E, D>, U: basenn::BuildOnDevice<E, D>>
-    basenn::BuildOnDevice<E, D> for GeneralizedAdd<T, U>
+impl<E: Dtype, D: Device<E>, T: nn_core::BuildOnDevice<E, D>, U: nn_core::BuildOnDevice<E, D>>
+    nn_core::BuildOnDevice<E, D> for GeneralizedAdd<T, U>
 {
     type Built = GeneralizedAdd<T::Built, U::Built>;
     fn try_build_on_device(&self, device: &D) -> Result<Self::Built, <D>::Err> {
@@ -29,8 +29,8 @@ impl<E: Dtype, D: Device<E>, T: basenn::BuildOnDevice<E, D>, U: basenn::BuildOnD
     }
 }
 
-impl<X: WithEmptyTape, T: basenn::Module<X>, U: basenn::Module<X, Error = T::Error>>
-    basenn::Module<X> for GeneralizedAdd<T, U>
+impl<X: WithEmptyTape, T: nn_core::Module<X>, U: nn_core::Module<X, Error = T::Error>>
+    nn_core::Module<X> for GeneralizedAdd<T, U>
 where
     T::Output: TryAdd<U::Output, Err = T::Error>,
 {

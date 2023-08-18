@@ -1,5 +1,5 @@
-use basenn::{BuildModuleExt, Module};
 use dfdx::shapes::Const;
+use nn_core::{BuildModuleExt, Module};
 use slimnn::{linear::LinearConfig, relu::ReLU, *};
 
 mod arch {

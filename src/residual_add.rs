@@ -1,10 +1,10 @@
-use basenn::BuildOnDevice;
-use derives::*;
 use dfdx::{
     shapes::Dtype,
     tensor::WithEmptyTape,
     tensor_ops::{Device, TryAdd},
 };
+use nn_core::BuildOnDevice;
+use nn_derives::*;
 
 use crate::Module;
 

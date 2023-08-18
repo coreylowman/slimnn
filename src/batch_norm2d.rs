@@ -1,5 +1,5 @@
-use derives::{LoadSafeTensors, SaveSafeTensors, UpdateParams, ZeroGrads};
 use dfdx::prelude::*;
+use nn_derives::{LoadSafeTensors, SaveSafeTensors, UpdateParams, ZeroGrads};
 
 #[derive(Default, Clone, Copy, Debug)]
 #[repr(transparent)]

@@ -1,6 +1,6 @@
 use crate::linear::LinearConfig;
-use derives::*;
 use dfdx::{shapes::*, tensor::*, tensor_ops::*};
+use nn_derives::*;
 use num_traits::Float;
 
 #[derive(Default, Debug, Copy, Clone, CustomModule)]
@@ -38,7 +38,7 @@ impl<Embed: Dim, NumHeads: Dim, K: Dim, V: Dim> MultiHeadAttentionConfig<Embed, 
 }
 
 impl<M: Dim, H: Dim, K: Dim, V: Dim, E, D, S1, S2, T>
-    basenn::Module<(
+    nn_core::Module<(
         Tensor<(S1, M), E, D, T>,
         Tensor<(S2, M), E, D>,
         Tensor<(S2, M), E, D>,
@@ -74,7 +74,7 @@ where
 }
 
 impl<M: Dim, H: Dim, K: Dim, V: Dim, E, D, B, S1, S2, T>
-    basenn::Module<(
+    nn_core::Module<(
         Tensor<(B, S1, M), E, D, T>,
         Tensor<(B, S2, M), E, D>,
         Tensor<(B, S2, M), E, D>,
@@ -135,13 +135,13 @@ where
     }
 }
 
-impl<M: Dim, H: Dim, K: Dim, V: Dim, E, D, Src> basenn::Module<Src>
+impl<M: Dim, H: Dim, K: Dim, V: Dim, E, D, Src> nn_core::Module<Src>
     for MultiHeadAttention<M, H, K, V, E, D>
 where
     E: Dtype,
     D: Device<E>,
     Src: SplitTape,
-    Self: basenn::Module<(Src, Src::NoTape, Src::NoTape), Output = Src, Error = D::Err>,
+    Self: nn_core::Module<(Src, Src::NoTape, Src::NoTape), Output = Src, Error = D::Err>,
 {
     type Output = Src;
     type Error = D::Err;

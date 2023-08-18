@@ -1,11 +1,11 @@
-use basenn::*;
+use nn_core::*;
 
-use derives::*;
 use dfdx::{
     prelude::{Device, Dim, Dtype, HasErr, HasShape, Shape, Tape, Tensor},
     shapes::Const,
     tensor_ops::TryMatMul,
 };
+use nn_derives::*;
 use rand_distr::Uniform;
 
 #[derive(Clone, Copy, Debug, Default)]

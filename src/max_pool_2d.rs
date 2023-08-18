@@ -1,8 +1,8 @@
-use derives::*;
 use dfdx::{
     shapes::{Const, Dim},
     tensor_ops::TryPool2D,
 };
+use nn_derives::*;
 
 #[derive(Debug, Default, Clone, CustomModule)]
 pub struct MaxPool2D<

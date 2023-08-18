@@ -1,9 +1,9 @@
-use derives::*;
 use dfdx::{
     shapes::{Const, Dim, Dtype, HasShape},
     tensor::Tensor,
     tensor_ops::{Device, TryConv2D},
 };
+use nn_derives::*;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Conv2DConfig<
