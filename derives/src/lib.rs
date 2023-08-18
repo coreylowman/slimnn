@@ -2,6 +2,12 @@ use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{parse_macro_input, parse_quote, Data, DeriveInput, Fields, Index};
 
+macro_rules! has_attr {
+    ($F:expr, $Attr:expr) => {
+        $F.attrs.iter().find(|a| a.path().is_ident($Attr)).is_some()
+    };
+}
+
 #[proc_macro_derive(CustomModule, attributes(module, built))]
 pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -27,11 +33,7 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                             let name = &f.ident;
                             let ty = &f.ty;
                             let vis = &f.vis;
-                            if f.attrs
-                                .iter()
-                                .find(|attr| attr.path().is_ident("module"))
-                                .is_some()
-                            {
+                            if has_attr!(f, "module") {
                                 has_fields_to_build = true;
                                 where_clause
                                     .predicates
@@ -47,11 +49,7 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                         let fields = fields.unnamed.iter().map(|f| {
                             let ty = &f.ty;
                             let vis = &f.vis;
-                            if f.attrs
-                                .iter()
-                                .find(|attr| attr.path().is_ident("module"))
-                                .is_some()
-                            {
+                            if has_attr!(f, "module") {
                                 has_fields_to_build = true;
                                 where_clause
                                     .predicates
@@ -177,11 +175,7 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                 Fields::Named(ref fields) => {
                     let recurse = fields.named.iter().map(|f| {
                         let name = &f.ident;
-                        if f.attrs
-                            .iter()
-                            .find(|attr| attr.path().is_ident("module"))
-                            .is_some()
-                        {
+                        if has_attr!(f, "module") {
                             quote_spanned! {f.span()=> #name: self.#name.try_build_on_device(device)?, }
                         } else {
                             quote_spanned! {f.span()=> #name: self.#name, }
@@ -200,11 +194,7 @@ pub fn custom_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                 Fields::Unnamed(ref fields) => {
                     let recurse = fields.unnamed.iter().enumerate().map(|(i, f)| {
                         let index = Index::from(i);
-                        if f.attrs
-                            .iter()
-                            .find(|attr| attr.path().is_ident("module"))
-                            .is_some()
-                        {
+                        if has_attr!(f, "module") {
                             quote_spanned! {f.span()=> self.#index.try_build_on_device(device)?, }
                         } else {
                             quote_spanned! {f.span()=> self.#index, }
@@ -484,11 +474,7 @@ pub fn reset_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 let resets = fields.named.iter().map(|f| {
                     let name = &f.ident;
                     let ty = &f.ty;
-                    if f.attrs
-                        .iter()
-                        .find(|attr| attr.path().is_ident("module"))
-                        .is_some()
-                    {
+                    if has_attr!(f, "module") {
                         where_clause
                             .predicates
                             .push(parse_quote!(#ty: basenn::ResetParams<Elem, Dev>));
@@ -503,11 +489,7 @@ pub fn reset_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 let resets = fields.unnamed.iter().enumerate().map(|(i, f)| {
                     let index = Index::from(i);
                     let ty = &f.ty;
-                    if f.attrs
-                        .iter()
-                        .find(|attr| attr.path().is_ident("module"))
-                        .is_some()
-                    {
+                    if has_attr!(f, "module") {
                         where_clause
                             .predicates
                             .push(parse_quote!(#ty: basenn::ResetParams<Elem, Dev>));
@@ -579,16 +561,12 @@ pub fn update_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                 let updates = fields.named.iter().map(|f| {
                     let name = &f.ident;
                     let ty = &f.ty;
-                    if f.attrs
-                        .iter()
-                        .find(|a| a.path().is_ident("module"))
-                        .is_some()
-                    {
+                    if has_attr!(f, "module") {
                         where_clause
                             .predicates
                             .push(parse_quote!(#ty: basenn::UpdateParams<Elem, Dev>));
                         quote_spanned!(f.span()=>self.#name.try_update_params(optimizer, gradients, missing_tensors)?;)
-                    } else if f.attrs.iter().find(|attr| attr.path().is_ident("param")).is_some() {
+                    } else if has_attr!(f, "param") {
                         quote_spanned!(f.span()=>optimizer.update_tensor(&mut self.#name, gradients, missing_tensors)?;)
                     } else {
                         Default::default()
@@ -600,16 +578,12 @@ pub fn update_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                 let updates = fields.unnamed.iter().enumerate().map(|(i, f)| {
                     let index = Index::from(i);
                     let ty = &f.ty;
-                    if f.attrs
-                        .iter()
-                        .find(|a| a.path().is_ident("module"))
-                        .is_some()
-                    {
+                    if has_attr!(f, "module") {
                         where_clause
                             .predicates
                             .push(parse_quote!(#ty: basenn::UpdateParams<Elem, Dev>));
                         quote_spanned!(f.span()=>self.#index.try_update_params(optimizer, gradients, missing_tensors)?;)
-                    } else if f.attrs.iter().find(|attr| attr.path().is_ident("param")).is_some() {
+                    } else if has_attr!(f, "param") {
                         quote_spanned!(f.span()=>optimizer.update_tensor(&mut self.#index, gradients, missing_tensors)?;)
                     } else {
                         Default::default()
@@ -683,20 +657,13 @@ pub fn zero_grads(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 let zero_grads = fields.named.iter().map(|f| {
                     let name = &f.ident;
                     let ty = &f.ty;
-                    if f.attrs
-                        .iter()
-                        .find(|a| a.path().is_ident("module"))
-                        .is_some()
+                    if has_attr!(f, "module")
                     {
                         where_clause
                             .predicates
                             .push(parse_quote!(#ty: basenn::ZeroGrads<Elem, Dev>));
                         quote_spanned!(f.span()=>self.#name.try_zero_grads(grads)?;)
-                    } else if f
-                        .attrs
-                        .iter()
-                        .find(|a| a.path().is_ident("param"))
-                        .is_some()
+                    } else if has_attr!(f, "param")
                     {
                         quote_spanned!(f.span()=>self.#name.device().try_fill_with_zeros(grads.get_or_alloc_mut(&self.#name)?)?;)
                     } else {
@@ -709,20 +676,13 @@ pub fn zero_grads(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 let zero_grads = fields.unnamed.iter().enumerate().map(|(i, f)| {
                     let index = Index::from(i);
                     let ty = &f.ty;
-                    if f.attrs
-                        .iter()
-                        .find(|a| a.path().is_ident("module"))
-                        .is_some()
+                    if has_attr!(f, "module")
                     {
                         where_clause
                             .predicates
                             .push(parse_quote!(#ty: basenn::ZeroGrads<Elem, Dev>));
                         quote_spanned!(f.span()=>self.#index.try_zero_grads(grads)?;)
-                    } else if f
-                        .attrs
-                        .iter()
-                        .find(|a| a.path().is_ident("param"))
-                        .is_some()
+                    } else if has_attr!(f, "param")
                     {
                         quote_spanned!(f.span()=>self.#index.device().try_fill_with_zeros(grads.get_or_alloc_mut(&self.#index)?)?)
                     } else {
@@ -764,10 +724,7 @@ pub fn save_safetensors(input: proc_macro::TokenStream) -> proc_macro::TokenStre
                     let name = &f.ident;
                     let ty = &f.ty;
                     let name_str = name.as_ref().map(|n| n.to_string());
-                    if f.attrs
-                        .iter()
-                        .find(|a| a.path().is_ident("serialize"))
-                        .is_some()
+                    if has_attr!(f, "serialize")
                     {
                         where_clause
                             .predicates
@@ -783,10 +740,7 @@ pub fn save_safetensors(input: proc_macro::TokenStream) -> proc_macro::TokenStre
                 let save_fields = fields.unnamed.iter().enumerate().map(|(i, f)| {
                     let index = Index::from(i);
                     let ty = &f.ty;
-                    if f.attrs
-                        .iter()
-                        .find(|a| a.path().is_ident("serialize"))
-                        .is_some()
+                    if has_attr!(f, "serialize")
                     {
                         where_clause
                             .predicates
@@ -833,11 +787,7 @@ pub fn load_safetensors(input: proc_macro::TokenStream) -> proc_macro::TokenStre
                     let name = &f.ident;
                     let ty = &f.ty;
                     let name_str = name.as_ref().map(|n| n.to_string());
-                    if f.attrs
-                        .iter()
-                        .find(|a| a.path().is_ident("serialize"))
-                        .is_some()
-                    {
+                    if has_attr!(f, "serialize") {
                         where_clause
                             .predicates
                             .push(parse_quote!(#ty: basenn::LoadSafeTensors));
@@ -852,11 +802,7 @@ pub fn load_safetensors(input: proc_macro::TokenStream) -> proc_macro::TokenStre
                 let load_fields = fields.unnamed.iter().enumerate().map(|(i, f)| {
                     let index = Index::from(i);
                     let ty = &f.ty;
-                    if f.attrs
-                        .iter()
-                        .find(|a| a.path().is_ident("serialize"))
-                        .is_some()
-                    {
+                    if has_attr!(f, "serialize") {
                         where_clause
                             .predicates
                             .push(parse_quote!(#ty: basenn::LoadSafeTensors));
