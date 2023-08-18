@@ -3,6 +3,7 @@
 pub mod avg_pool_global;
 pub mod batch_norm2d;
 pub mod bias1d;
+pub mod bias2d;
 pub mod conv2d;
 pub mod flatten2d;
 pub mod generalized_add;
