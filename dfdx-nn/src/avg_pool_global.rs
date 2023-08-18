@@ -1,10 +1,6 @@
-use dfdx::{
-    prelude::{Device, Dim, Dtype, Tape, Tensor},
-    tensor_ops::MeanTo,
-};
-use dfdx_nn_derives::*;
+use dfdx::prelude::{Device, Dim, Dtype, MeanTo, Tape, Tensor};
 
-#[derive(Default, Debug, Clone, Copy, CustomModule)]
+#[derive(Default, Debug, Clone, Copy, crate::CustomModule)]
 pub struct AvgPoolGlobal;
 
 impl<C: Dim, H: Dim, W: Dim, E: Dtype, D: Device<E>, T: Tape<E, D>>

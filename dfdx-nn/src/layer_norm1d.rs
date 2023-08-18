@@ -1,5 +1,5 @@
+use crate::*;
 use dfdx::prelude::*;
-use dfdx_nn_derives::*;
 
 #[derive(Default, Clone, Copy, Debug)]
 #[repr(transparent)]

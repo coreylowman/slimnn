@@ -1,9 +1,9 @@
+use crate::*;
 use dfdx::{
     shapes::Dtype,
     tensor::WithEmptyTape,
     tensor_ops::{Device, TryAdd},
 };
-use dfdx_nn_derives::*;
 
 #[derive(
     Default, Clone, Debug, ResetParams, ZeroGrads, UpdateParams, LoadSafeTensors, SaveSafeTensors,

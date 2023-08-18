@@ -1,12 +1,12 @@
 use std::ops::Mul;
 
+use crate::{CustomModule, Module};
+
 use dfdx::{
     shapes::{Dim, Dtype, HasShape},
     tensor::{Tape, Tensor},
     tensor_ops::{Device, ReshapeTo},
 };
-use dfdx_nn_core::Module;
-use dfdx_nn_derives::CustomModule;
 
 #[derive(Debug, Default, Clone, Copy, CustomModule)]
 pub struct Flatten2D;

@@ -1,16 +1,16 @@
+use crate::*;
 use dfdx::{
     shapes::Dtype,
     tensor::WithEmptyTape,
     tensor_ops::{Device, TryAdd},
 };
-use dfdx_nn_core::BuildOnDevice;
-use dfdx_nn_derives::*;
 
 use crate::Module;
 
 #[derive(
     Default, Clone, Debug, ResetParams, ZeroGrads, UpdateParams, SaveSafeTensors, LoadSafeTensors,
 )]
+#[repr(transparent)]
 pub struct ResidualAdd<T>(
     #[module]
     #[serialize]

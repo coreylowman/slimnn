@@ -1,6 +1,5 @@
-use crate::linear::LinearConfig;
+use crate::*;
 use dfdx::{shapes::*, tensor::*, tensor_ops::*};
-use dfdx_nn_derives::*;
 use num_traits::Float;
 
 #[derive(Default, Debug, Copy, Clone, CustomModule)]

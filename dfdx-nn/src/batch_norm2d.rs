@@ -1,5 +1,5 @@
+use crate::{LoadSafeTensors, SaveSafeTensors, UpdateParams, ZeroGrads};
 use dfdx::prelude::*;
-use dfdx_nn_derives::{LoadSafeTensors, SaveSafeTensors, UpdateParams, ZeroGrads};
 
 #[derive(Default, Clone, Copy, Debug)]
 #[repr(transparent)]

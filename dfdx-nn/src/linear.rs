@@ -1,7 +1,6 @@
-use crate::{bias1d::Bias1DConfig, matmul::MatMulConfig};
+use crate::{Bias1DConfig, MatMulConfig, Sequential};
 
 use dfdx::shapes::{Const, Dim};
-use dfdx_nn_derives::Sequential;
 
 #[derive(Default, Debug, Clone, Copy, Sequential)]
 #[built(Linear)]

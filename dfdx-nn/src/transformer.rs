@@ -1,16 +1,11 @@
+use crate::*;
+
 use dfdx::{
     dtypes::Dtype,
     shapes::Dim,
     tensor::{HasErr, PutTape, SplitTape, WithEmptyTape},
     tensor_ops::{Device, TryAdd},
 };
-use dfdx_nn_derives::*;
-
-use crate::layer_norm1d::{LayerNorm1D, LayerNorm1DConfig};
-use crate::linear::LinearConfig;
-use crate::multi_head_attention::{MultiHeadAttention, MultiHeadAttentionConfig};
-use crate::relu::ReLU;
-use crate::residual_add::ResidualAdd;
 
 #[derive(Clone, Debug, Sequential)]
 #[built(FeedForward)]

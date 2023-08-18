@@ -1,10 +1,9 @@
+use crate::{CustomModule, Module};
 use dfdx::{
     shapes::{Dtype, Shape},
     tensor::{Tape, Tensor},
     tensor_ops::{Device, ReshapeTo},
 };
-use dfdx_nn_core::Module;
-use dfdx_nn_derives::CustomModule;
 
 #[derive(Default, Debug, Clone, Copy, CustomModule)]
 pub struct Reshape<S: Shape>(pub S);
